@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useToast } from '../context/ToastContext'
 import { Modal } from './ui'
 import { generateStage } from '../lib/generateStage'
+import { roomsNeeded } from '../lib/bracket'
 
 // Continuar desde una fase Battle Royale: se tocan los equipos que pasan a una nueva fase Battle Royale con
 // sus propias partidas. Si la fase ya tenía definido cuántos pasan, vienen preseleccionados los mejores de la
@@ -37,6 +38,7 @@ export default function ContinueBrModal({ stage, totals, teamName, pending, next
       const config = {
         lobbies: n, placement_points: stage.config?.placement_points, kill_points: stage.config?.kill_points,
         participants: selected.map((r) => r.id), source_stage: stage.id,
+        ...(roomsNeeded(selected.length) > 1 ? { rooms: roomsNeeded(selected.length) } : {}), // más de 12 clasificados: varias salas
       }
       const { data, error } = await supabase.from('stages').insert({
         game_key: stage.game_key, name: name.trim(), type: 'battle_royale', position: nextPosition, config,

@@ -37,7 +37,7 @@ export async function generateStage({ stageId, type, ids, config, ordered = fals
     const lobbies = Number(config.lobbies)
     if (!Number.isInteger(lobbies) || lobbies < 1 || lobbies > 20) throw new Error('Cantidad de partidas inválida (1–20).')
     const r = await supabase.from('matches').insert(
-      Array.from({ length: lobbies }, (_, i) => ({ stage_id: stageId, round: i + 1, position: 0 })))
+      Array.from({ length: lobbies }, (_, i) => ({ stage_id: stageId, round: i + 1, position: 0, ...(Number(config.rooms) > 1 ? { rooms: Number(config.rooms) } : {}) })))
     if (r.error) throw new Error(r.error.message)
   }
 }

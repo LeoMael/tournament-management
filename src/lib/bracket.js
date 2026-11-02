@@ -296,3 +296,7 @@ export function draftBracket(matches, slots) {
     ? { ...m, ...blank, team_a: slots[m.position * 2] ?? null, team_b: slots[m.position * 2 + 1] ?? null }
     : { ...m, ...blank, team_a: null, team_b: null })))
 }
+
+// Una sala de Free Fire admite hasta 12 escuadras. Con más equipos hacen falta varias salas.
+export const ROOM_SIZE = 12
+export const roomsNeeded = (teamCount) => Math.max(1, Math.ceil(teamCount / ROOM_SIZE))

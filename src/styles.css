@@ -527,3 +527,14 @@ button.rb-btn[aria-pressed="true"] { background: var(--accent-soft); border-colo
 .rb-nums b { color: var(--text); font-size: 14px; }
 .rb-track { grid-area: track; height: 8px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
 .rb-track i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+
+/* ---------- Salas de una partida (LobbyModal) ---------- */
+.room-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.room-bar-label { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.room-col { display: grid; gap: 6px; align-content: start; border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: var(--surface-2); }
+.room-col h4 { margin: 0 0 2px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.room-team { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); font-size: 13px; font-weight: 600; }
+.room-team span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-team select { flex: none; width: 82px; height: 28px; border-radius: 7px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-size: 12px; }
+.room-over { color: var(--bad) !important; }

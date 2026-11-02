@@ -274,17 +274,31 @@ create table if not exists public.match_results (
   primary key (match_id, registration_id)
 );
 
+-- Salas de una partida (Battle Royale): cuántas salas tiene y en cuál juega cada equipo.
+-- Cada sala es una partida aparte: el puesto (1.º, 2.º…) se cuenta dentro de su sala.
+alter table public.matches add column if not exists rooms smallint not null default 1;
+alter table public.matches drop constraint if exists matches_rooms_check;
+alter table public.matches add constraint matches_rooms_check check (rooms between 1 and 12);
+
+create table if not exists public.lobby_rooms (
+  match_id uuid not null references public.matches(id) on delete cascade,
+  registration_id uuid not null references public.registrations(id) on delete cascade,
+  room smallint not null check (room between 1 and 12),
+  primary key (match_id, registration_id)
+);
+
 alter table public.stages enable row level security;
 alter table public.groups enable row level security;
 alter table public.group_teams enable row level security;
 alter table public.matches enable row level security;
 alter table public.match_results enable row level security;
+alter table public.lobby_rooms enable row level security;
 
 -- Grupos, llaves y resultados: admin y revisor/árbitro.
 do $$
 declare t text;
 begin
-  foreach t in array array['stages', 'groups', 'group_teams', 'matches', 'match_results'] loop
+  foreach t in array array['stages', 'groups', 'group_teams', 'matches', 'match_results', 'lobby_rooms'] loop
     execute format('drop policy if exists %I on public.%I', t || '_admin_all', t);
     execute format('drop policy if exists %I on public.%I', t || '_staff_all', t);
     execute format('create policy %I on public.%I for all to authenticated using (public.has_role(array[''admin'', ''revisor_arbitro''])) with check (public.has_role(array[''admin'', ''revisor_arbitro'']))', t || '_staff_all', t);
@@ -319,7 +333,7 @@ create or replace view public.public_group_teams as
 create or replace view public.public_matches as
   select m.id, m.stage_id, m.group_id, m.round, m.position, m.team_a, m.team_b,
          ra.team_name as team_a_name, rb.team_name as team_b_name,
-         m.score_a, m.score_b, m.best_of, m.status, m.scheduled_at, m.winner_id
+         m.score_a, m.score_b, m.best_of, m.status, m.scheduled_at, m.winner_id, m.rooms
   from public.matches m
   join public.stages s on s.id = m.stage_id and s.published
   left join public.registrations ra on ra.id = m.team_a
@@ -332,6 +346,13 @@ create or replace view public.public_match_results as
   join public.stages s on s.id = m.stage_id and s.published
   join public.registrations r on r.id = mr.registration_id;
 
+create or replace view public.public_lobby_rooms as
+  select lr.match_id, lr.registration_id, r.team_name, lr.room, m.stage_id, m.round
+  from public.lobby_rooms lr
+  join public.matches m on m.id = lr.match_id
+  join public.stages s on s.id = m.stage_id and s.published
+  join public.registrations r on r.id = lr.registration_id;
+
 -- Cupos por juego: solo conteos, sin datos personales.
 create or replace view public.public_availability as
   select g.key as game_key,
@@ -343,9 +364,9 @@ revoke all on public.public_availability from public;
 grant select on public.public_availability to anon, authenticated;
 
 revoke all on public.public_teams, public.public_stages, public.public_groups,
-  public.public_group_teams, public.public_matches, public.public_match_results from public;
+  public.public_group_teams, public.public_matches, public.public_match_results, public.public_lobby_rooms from public;
 grant select on public.public_teams, public.public_stages, public.public_groups,
-  public.public_group_teams, public.public_matches, public.public_match_results to anon, authenticated;
+  public.public_group_teams, public.public_matches, public.public_match_results, public.public_lobby_rooms to anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- Auditoría
@@ -666,6 +687,7 @@ revoke all on function public.submit_registration(jsonb) from public;
 grant execute on function public.submit_registration(jsonb) to anon, authenticated;
 
 -- Defensa en profundidad: sin permisos directos para anon sobre tablas privadas.
+revoke all on public.lobby_rooms from anon;
 revoke all on public.admins, public.registrations, public.players, public.audit_log,
   public.stages, public.groups, public.group_teams, public.matches, public.match_results from anon;
 revoke insert, update, delete on public.tournament_settings, public.games, public.prizes from anon;

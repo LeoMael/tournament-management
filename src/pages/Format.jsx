@@ -5,7 +5,7 @@ import { ErrorBox, Modal, PageHeader, Spinner } from '../components/ui'
 import StagePreview from '../components/StagePreview'
 import MatchCard from '../components/MatchCard'
 import BracketView from '../components/BracketView'
-import LobbyBoard from '../components/LobbyBoard'
+import LobbyModal from '../components/LobbyModal'
 import { GAME_LABEL, dateTime, toLocalInput } from '../lib/format'
 import { generateStage } from '../lib/generateStage'
 import RoundFormat from '../components/RoundFormat'
@@ -16,8 +16,8 @@ import ChampionModal from '../components/ChampionModal'
 import { battleRoyaleTotals } from '../lib/standings'
 import { useRoundBo } from '../lib/useRoundBo'
 import {
-  DEFAULT_PLACEMENT_POINTS, brPoints, draftBracket, groupStandings, isBye, isDead, maxQualify, settleBracket, numberMatches, pendingLabel,
-  previewStage, qualifyText, roundName, totalRounds,
+  DEFAULT_PLACEMENT_POINTS, draftBracket, groupStandings, isBye, isDead, maxQualify, settleBracket, numberMatches, pendingLabel,
+  previewStage, qualifyText, roomsNeeded, ROOM_SIZE, roundName, totalRounds,
 } from '../lib/bracket'
 
 const STAGE_TYPES = {
@@ -33,7 +33,7 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
   const types = TYPES_BY_GAME[gameKey]
   const [form, setForm] = useState({
     name: '', type: types[0], groups: 2, qualify_per_group: 2, best_of: 1, lobbies: 6,
-    placement_points: DEFAULT_PLACEMENT_POINTS.join(','), kill_points: 1, qualify_count: '',
+    placement_points: DEFAULT_PLACEMENT_POINTS.join(','), kill_points: 1, qualify_count: '', rooms: '',
   })
   const bracketRounds = form.type === 'single_elim' ? (previewStage('single_elim', teams.length, {}).rounds ?? 0) : 0
   const [roundBo, setRoundBo] = useRoundBo(bracketRounds)
@@ -54,6 +54,9 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
       const pts = form.placement_points.split(',').map((v) => Number(v.trim()))
       if (pts.some((v) => !Number.isFinite(v) || v < 0)) return toast.error('Tabla de puntos inválida.')
       config = { ...config, placement_points: pts, kill_points: Number(form.kill_points) || 0 }
+      // Con más de 12 equipos hacen falta varias salas (12 por sala como máximo).
+      const rooms = Math.max(Math.floor(Number(form.rooms)) || 1, roomsNeeded(ids.length))
+      if (rooms >= 2 && rooms <= 12) config.rooms = rooms
       const q = Math.floor(Number(form.qualify_count))
       if (form.qualify_count !== '' && q >= 1) config.qualify_count = q
     }
@@ -124,6 +127,10 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
             <label className="field"><span>Puntos por puesto (1°, 2°, 3°… separados por coma)</span>
               <input value={form.placement_points} onChange={(e) => set('placement_points', e.target.value)} />
             </label>
+            <label className="field"><span>Salas por partida</span>
+              <input type="number" min={roomsNeeded(teams.length)} max="12" placeholder={String(roomsNeeded(teams.length))} value={form.rooms} onChange={(e) => set('rooms', e.target.value)} />
+              {teams.length > ROOM_SIZE && <small className="hint">{teams.length} equipos: mínimo {roomsNeeded(teams.length)} salas ({ROOM_SIZE} por sala).</small>}
+            </label>
             <label className="field"><span>Pasan a la siguiente fase (opcional)</span>
               <input type="number" min="1" max={teams.length} placeholder="Ej.: 12" value={form.qualify_count} onChange={(e) => set('qualify_count', e.target.value)} />
             </label>
@@ -173,42 +180,6 @@ function ScheduleModal({ match, title, onClose, onSaved }) {
   )
 }
 
-/* --------------------- Resultado de una partida (BR) --------------------- */
-function LobbyModal({ match, stage, teams, results, onClose, onSaved }) {
-  const toast = useToast()
-  const mine = results.filter((x) => x.match_id === match.id)
-  const [order, setOrder] = useState(() => [...mine].sort((a, b) => a.placement - b.placement).map((r) => r.registration_id))
-  const [kills, setKills] = useState(() => Object.fromEntries(mine.map((r) => [r.registration_id, r.kills])))
-  const [busy, setBusy] = useState(false)
-  const board = teams.map((t) => ({ id: t.id, name: t.team_name }))
-  const pointsOf = (place, k) => brPoints(place, k, stage.config)
-
-  const save = async () => {
-    setBusy(true)
-    const del = await supabase.from('match_results').delete().eq('match_id', match.id)
-    if (del.error) { setBusy(false); return toast.error(del.error.message) }
-    if (order.length) {
-      const ins = await supabase.from('match_results').insert(order.map((id, i) => ({
-        match_id: match.id, registration_id: id, placement: i + 1, kills: kills[id] ?? 0, points: pointsOf(i + 1, kills[id] ?? 0),
-      })))
-      if (ins.error) { setBusy(false); return toast.error(ins.error.message) }
-    }
-    await supabase.from('matches').update({ status: order.length ? 'completed' : 'scheduled' }).eq('id', match.id)
-    setBusy(false)
-    toast.success('Partida guardada.')
-    onSaved()
-    onClose()
-  }
-
-  return (
-    <Modal title={`Partida ${match.round}`} onClose={onClose}>
-      <LobbyBoard teams={board} order={order} kills={kills} pointsOf={pointsOf}
-        onOrder={setOrder} onKills={(id, value) => setKills((k) => ({ ...k, [id]: value }))} />
-      <button className="btn btn--primary" disabled={busy} onClick={save} type="button">Guardar partida</button>
-    </Modal>
-  )
-}
-
 /* ------------------------------ Vista de fase ------------------------------ */
 function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onContinued }) {
   const toast = useToast()
@@ -225,12 +196,14 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
   const [selSlot, setSelSlot] = useState(null)
 
   const load = useCallback(async () => {
-    const [m, g, gt, mr] = await Promise.all([
+    const [m, g, gt, mr, lr] = await Promise.all([
       supabase.from('matches').select('*').eq('stage_id', stage.id).order('round').order('position'),
       supabase.from('groups').select('*').eq('stage_id', stage.id).order('name'),
       supabase.from('group_teams').select('group_id, registration_id'),
       supabase.from('match_results').select('*'),
+      supabase.from('lobby_rooms').select('*'),
     ])
+    // lobby_rooms solo existe tras ejecutar el SQL con salas; si falta, se trabaja con 1 sala.
     const err = m.error || g.error || gt.error || mr.error
     if (err) return setError(err.message)
     const matchIds = new Set(m.data.map((x) => x.id))
@@ -239,6 +212,7 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
       matches: m.data, groups: g.data,
       groupTeams: gt.data.filter((x) => groupIds.has(x.group_id)),
       results: mr.data.filter((x) => matchIds.has(x.match_id)),
+      rooms: lr.error ? [] : lr.data.filter((x) => matchIds.has(x.match_id)),
     })
   }, [stage.id])
   useEffect(() => { load() }, [load])
@@ -348,7 +322,7 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
   const addLobby = async () => {
     setBusyMatch('lobby')
     const next = Math.max(0, ...data.matches.map((m) => m.round)) + 1
-    const { error: err } = await supabase.from('matches').insert({ stage_id: stage.id, round: next, position: 0 })
+    const { error: err } = await supabase.from('matches').insert({ stage_id: stage.id, round: next, position: 0, ...(Math.max(Number(stage.config?.rooms) || 1, roomsNeeded(allTeams.length)) > 1 ? { rooms: Math.max(Number(stage.config?.rooms) || 1, roomsNeeded(allTeams.length)) } : {}) })
     setBusyMatch(null)
     if (err) return toast.error(err.message)
     toast.success(`Partida ${next} agregada.`)
@@ -540,7 +514,7 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
               <div className={`lobby-row ${m.status === 'completed' ? 'lobby-row--done' : ''}`} key={m.id}>
                 <button type="button" className="lobby-open" onClick={() => setOpenMatch(m)} title="Cargar o editar el resultado">
                   <b>P{m.round}</b>
-                  <span>{m.status === 'completed' ? (topOf(m.id) ? `Booyah · ${topOf(m.id)}` : 'Jugada') : 'Pendiente'}</span>
+                  <span>{m.rooms > 1 ? `${m.rooms} salas · ` : ''}{m.status === 'completed' ? (m.rooms <= 1 && topOf(m.id) ? `Booyah · ${topOf(m.id)}` : 'Jugada') : 'Pendiente'}</span>
                 </button>
                 {m.status !== 'completed' && (
                   <button type="button" className="lobby-del" aria-label={`Eliminar partida ${m.round}`} title="Eliminar (solo pendientes)" disabled={busyMatch === 'lobby'} onClick={() => deleteLobby(m)}>×</button>
@@ -631,7 +605,7 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
         <ScheduleModal match={schedulingMatch} title={`Horario · ${teamName(schedulingMatch.team_a)} vs ${teamName(schedulingMatch.team_b)}`} onClose={() => setSchedulingMatch(null)} onSaved={refresh} />
       )}
       {openMatch && stage.type === 'battle_royale' && (
-        <LobbyModal match={openMatch} stage={stage} teams={allTeams} results={results} onClose={() => setOpenMatch(null)} onSaved={refresh} />
+        <LobbyModal match={openMatch} stage={stage} teams={allTeams} results={results} assignments={data.rooms.filter((x) => x.match_id === openMatch.id)} onClose={() => setOpenMatch(null)} onSaved={refresh} />
       )}
       {stage.type !== 'battle_royale' && matches.some((m) => m.scheduled_at) && (
         <p className="hint">Próximo horario cargado: {dateTime(matches.filter((m) => m.scheduled_at && m.status !== 'completed').map((m) => m.scheduled_at).sort()[0])}</p>
