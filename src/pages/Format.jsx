@@ -94,7 +94,7 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
   }
 
   return (
-    <Modal title="Nueva fase" onClose={onClose}>
+    <Modal title="Nueva fase" onClose={onClose} wide={form.type === 'battle_royale'}>
       <form onSubmit={create} className="grid" style={{ gap: '.9rem' }}>
         <p className="hint">El sorteo es aleatorio entre los equipos aprobados de {GAME_LABEL[gameKey]}.</p>
         <div className="form-row">
@@ -106,6 +106,11 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
               {types.map((t) => <option key={t} value={t}>{STAGE_TYPES[t]}</option>)}
             </select>
           </label>
+          {form.type === 'battle_royale' && (
+            <label className="field"><span>N.º de partidas</span>
+              <input type="number" min="1" max="20" value={form.lobbies} onChange={(e) => set('lobbies', e.target.value)} />
+            </label>
+          )}
         </div>
         {form.type === 'groups' && (
           <div className="form-row">
@@ -124,32 +129,30 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
         )}
         {form.type === 'single_elim' && <RoundFormat values={roundBo} onChange={setRoundBo} />}
         {form.type === 'battle_royale' && (
-          <>
-            <section className="nf-section">
-              <h3>1 · Partidas</h3>
-              <label className="field" style={{ maxWidth: 220 }}><span>Cuántas partidas se juegan</span>
-                <input type="number" min="1" max="20" value={form.lobbies} onChange={(e) => set('lobbies', e.target.value)} />
-              </label>
-            </section>
-            <section className="nf-section">
-              <h3>2 · Salas y equipos por sala</h3>
-              <RoomSizesEditor total={teams.length} sizes={roomSizes} onChange={setRoomSizes} />
-            </section>
-            <section className="nf-section">
-              <h3>3 · Puntos</h3>
-              <PointsEditor placement={form.placement} kill={form.kill_points}
-                onPlacement={(i, v) => set('placement', form.placement.map((x, k) => (k === i ? v : x)))}
-                onKill={(v) => set('kill_points', v)}
-                onReset={() => setForm((f) => ({ ...f, placement: DEFAULT_PLACEMENT_POINTS.map(String), kill_points: '1' }))} />
-            </section>
-            <section className="nf-section">
-              <h3>4 · Clasificación (opcional)</h3>
-              <label className="field" style={{ maxWidth: 260 }}><span>{roomSizes.length > 1 ? 'Pasan por sala' : 'Pasan a la siguiente fase'}</span>
-                <input type="number" min="1" max={Math.min(...roomSizes)} placeholder="Ej.: 6" value={form.qualify_count} onChange={(e) => set('qualify_count', e.target.value)} />
-              </label>
-              {Number(form.qualify_count) >= 1 && <p className="hint">Pasarán <b>{roomSizes.reduce((sum, size) => sum + Math.min(size, Number(form.qualify_count)), 0)}</b> equipos en total.</p>}
-            </section>
-          </>
+          <div className="nf-cols">
+            <div className="nf-col">
+              <section className="nf-section">
+                <h3>1 · Salas y equipos por sala</h3>
+                <RoomSizesEditor total={teams.length} sizes={roomSizes} onChange={setRoomSizes} />
+              </section>
+              <section className="nf-section">
+                <h3>3 · Clasificación (opcional)</h3>
+                <label className="field" style={{ maxWidth: 260 }}><span>{roomSizes.length > 1 ? 'Pasan por sala' : 'Pasan a la siguiente fase'}</span>
+                  <input type="number" min="1" max={Math.min(...roomSizes)} placeholder="Ej.: 6" value={form.qualify_count} onChange={(e) => set('qualify_count', e.target.value)} />
+                </label>
+                {Number(form.qualify_count) >= 1 && <p className="hint">Pasarán <b>{roomSizes.reduce((sum, size) => sum + Math.min(size, Number(form.qualify_count)), 0)}</b> equipos en total.</p>}
+              </section>
+            </div>
+            <div className="nf-col">
+              <section className="nf-section">
+                <h3>2 · Puntos</h3>
+                <PointsEditor placement={form.placement} kill={form.kill_points}
+                  onPlacement={(i, v) => set('placement', form.placement.map((x, k) => (k === i ? v : x)))}
+                  onKill={(v) => set('kill_points', v)}
+                  onReset={() => setForm((f) => ({ ...f, placement: DEFAULT_PLACEMENT_POINTS.map(String), kill_points: '1' }))} />
+              </section>
+            </div>
+          </div>
         )}
         <StagePreview type={form.type} total={teams.length} config={{ ...form, qualify_per_group: Math.min(form.qualify_per_group, maxQualify(teams.length, form.groups)) }} roundBo={roundBo} roomSizes={roomSizes} />
         <button className="btn btn--primary" disabled={busy} type="submit">{busy ? 'Generando…' : 'Generar fase'}</button>

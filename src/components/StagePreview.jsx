@@ -62,13 +62,10 @@ export default function StagePreview({ type, total, config, roundBo, names = nul
     caption = p.valid ? (roomSizes?.length > 1 ? 'Cada sala juega por separado y tiene su propia tabla.' : 'Todos los equipos juegan todas las partidas.') : total < 2 ? 'Necesitas al menos 2 equipos aprobados.' : 'Cantidad de partidas inválida (1–20).'
   }
   return (
-    <section className={`pv ${p.valid ? '' : 'pv--invalid'}`} aria-label="Vista previa de la fase" aria-live="polite">
+    <section className={`pv ${p.valid ? '' : 'pv--invalid'} ${p.kind === 'battle_royale' ? 'pv--br' : ''}`} aria-label="Vista previa de la fase" aria-live="polite">
       <div className="pv-tiles">{tiles.map(([label, value]) => <Tile key={label} label={label} value={value} />)}</div>
       {p.valid && p.kind === 'groups' && <Groups sizes={p.sizes} qualify={p.qualify} />}
       {p.valid && p.kind === 'single_elim' && <PreviewBracket p={p} roundBo={roundBo} />}
-      {p.valid && p.kind === 'battle_royale' && roomSizes?.length > 1 && (
-        <Groups sizes={roomSizes} qualify={Number(config.qualify_count) || 0} label="Sala" />
-      )}
       {p.valid && p.kind === 'battle_royale' && (
         <div className="pv-lobbies" aria-hidden="true">{Array.from({ length: p.lobbies }, (_, i) => <span key={i} title={`Partida ${i + 1}`}>P{i + 1}</span>)}</div>
       )}
