@@ -109,7 +109,7 @@ begin
           left(case when v_slot = 1 then 'Cap' || initcap(split_part(v_names[v_i], ' ', 1)) else v_nick end, 30),
           -- ID único por juego/equipo/slot: 10 dígitos
           (case v_game when 'mlbb' then '7' else '8' end) || lpad(v_i::text, 3, '0') || lpad(v_slot::text, 2, '0') || '4821',
-          case when v_game = 'mlbb' then (2000 + (v_i * 7 + v_slot) % 900)::text end
+          null
         );
       end loop;
     end loop;

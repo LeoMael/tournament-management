@@ -167,11 +167,11 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
         {!players ? <Spinner /> : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>#</th><th>Rol</th><th>Nickname</th><th>ID</th>{reg.game_key === 'mlbb' && <th>Server</th>}</tr></thead>
+              <thead><tr><th>#</th><th>Rol</th><th>Nickname</th><th>ID</th>{players.some((p) => p.server_id) && <th>Server</th>}</tr></thead>
               <tbody>
                 {players.map((p) => (
                   <tr key={p.id}><td>{p.slot}</td><td>{p.is_substitute ? 'Suplente' : p.slot === 1 ? 'Capitán' : 'Titular'}</td>
-                    <td>{p.nickname}</td><td>{p.game_player_id}</td>{reg.game_key === 'mlbb' && <td>{p.server_id}</td>}</tr>
+                    <td>{p.nickname}</td><td>{p.game_player_id}</td>{players.some((x) => x.server_id) && <td>{p.server_id}</td>}</tr>
                 ))}
               </tbody>
             </table>

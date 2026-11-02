@@ -687,9 +687,6 @@ begin
     if char_length(v_nick) not between 1 and 30 or v_pid !~ '^[0-9]{5,15}$' then
       raise exception 'Datos de jugador inválidos (slot %).', v_i + 1 using errcode = 'P0001';
     end if;
-    if v_key = 'mlbb' and (v_srv is null or v_srv !~ '^[0-9]{1,6}$') then
-      raise exception 'Falta el Server ID del jugador %.', v_i + 1 using errcode = 'P0001';
-    end if;
     if exists (
       select 1 from players p join registrations r on r.id = p.registration_id
       where p.game_key = v_key and p.game_player_id = v_pid and r.status in ('pending', 'approved')
