@@ -644,3 +644,22 @@ button.rb-btn[aria-pressed="true"] { background: var(--accent-soft); border-colo
 .pv--br .pv-tiles { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
 .pv--br .pv-tile { padding: 6px 12px; }
 .pv--br .pv-tile strong { font-size: 20px; }
+
+/* ---------- En vivo (panel) ---------- */
+.live-card--on { border-color: var(--bad); box-shadow: 0 0 0 3px var(--bad-soft); }
+.live-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.live-head h2 { margin: 0; }
+.live-switch { display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 16px; border-radius: 99px; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-weight: 800; font-size: 13.5px; cursor: pointer; }
+.live-switch i { width: 10px; height: 10px; border-radius: 50%; background: var(--faint); }
+.live-switch--on { background: var(--bad); border-color: var(--bad); color: #fff; }
+.live-switch--on i { background: #fff; animation: live-pulse 1.2s ease-in-out infinite; }
+.live-switch:disabled { opacity: .6; cursor: wait; }
+@keyframes live-pulse { 50% { opacity: .3; } }
+.live-links { display: grid; gap: 8px; margin: 10px 0; }
+.live-row { display: flex; gap: 6px; align-items: center; }
+.live-row select, .live-row input { height: 38px; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; padding: 0 10px; min-width: 0; }
+.live-row select { flex: none; width: 126px; }
+.live-custom { flex: none; width: 110px; }
+.live-url { flex: 1; }
+.live-url[aria-invalid="true"] { border-color: var(--bad); }
+.live-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }

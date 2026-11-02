@@ -13,6 +13,7 @@ export const ACCESS = {
   '/formato': ['admin', 'revisor_arbitro'],
   '/equipos': ['admin', 'revisor_arbitro'],
   '/universidades': ['admin', 'revisor_arbitro'],
+  '/envivo': ['admin', 'revisor_arbitro'],
   '/contenido': ['admin', 'editor'],
   '/configuracion': ['admin'],
   '/equipo': ['admin'],

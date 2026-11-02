@@ -92,6 +92,35 @@ create table if not exists public.games (
   updated_at timestamptz not null default now()
 );
 
+-- Transmisión en vivo por juego: si está al aire y los enlaces de las redes donde se transmite.
+alter table public.games add column if not exists live boolean not null default false;
+alter table public.games add column if not exists live_links jsonb not null default '[]'::jsonb;
+
+-- Cada enlace: { "platform": "YouTube", "url": "https://…" }. Solo https, máximo 8 enlaces por juego.
+create or replace function public.valid_live_links(links jsonb)
+returns boolean
+language plpgsql
+immutable
+as $$
+declare
+  item jsonb;
+begin
+  if jsonb_typeof(links) <> 'array' or jsonb_array_length(links) > 8 then
+    return false;
+  end if;
+  for item in select * from jsonb_array_elements(links) loop
+    if jsonb_typeof(item) <> 'object'
+       or coalesce(item ->> 'url', '') !~ '^https://[^\s<>"]{3,300}$'
+       or char_length(coalesce(item ->> 'platform', '')) not between 1 and 30 then
+      return false;
+    end if;
+  end loop;
+  return true;
+end;
+$$;
+alter table public.games drop constraint if exists games_live_links_check;
+alter table public.games add constraint games_live_links_check check (public.valid_live_links(live_links));
+
 create table if not exists public.prizes (
   place smallint primary key check (place between 1 and 10),
   label text not null check (char_length(label) between 1 and 40),
@@ -124,6 +153,13 @@ create policy games_editor_update on public.games
   using (public.has_role(array['editor']))
   with check (public.has_role(array['editor']));
 
+-- El revisor/árbitro solo puede poner o quitar el "en vivo" y sus enlaces.
+drop policy if exists games_live_update on public.games;
+create policy games_live_update on public.games
+  for update to authenticated
+  using (public.has_role(array['revisor_arbitro']))
+  with check (public.has_role(array['revisor_arbitro']));
+
 create or replace function public.games_editor_guard()
 returns trigger
 language plpgsql
@@ -131,6 +167,15 @@ security definer
 set search_path = public
 as $$
 begin
+  -- Revisor/árbitro: solo 'live' y 'live_links' (y la marca de actualización).
+  if public.has_role(array['revisor_arbitro'])
+     and (to_jsonb(new) - 'live' - 'live_links' - 'updated_at') is distinct from (to_jsonb(old) - 'live' - 'live_links' - 'updated_at') then
+    raise exception 'Solo un administrador puede cambiar esos datos del juego.' using errcode = 'P0001';
+  end if;
+  -- Editor: no toca el "en vivo".
+  if public.has_role(array['editor']) and (new.live is distinct from old.live or new.live_links is distinct from old.live_links) then
+    raise exception 'Solo un administrador o el revisor/árbitro pueden cambiar el en vivo.' using errcode = 'P0001';
+  end if;
   if not public.is_admin() and (
        new.key is distinct from old.key
     or new.name is distinct from old.name

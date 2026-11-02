@@ -15,6 +15,7 @@ import Content from './pages/Content'
 import Team from './pages/Team'
 import Teams from './pages/Teams'
 import Universities from './pages/Universities'
+import Live from './pages/Live'
 
 export default function App() {
   if (!isConfigured) {
@@ -41,6 +42,7 @@ export default function App() {
                   <Route path="formato" element={<Format />} />
                   <Route path="equipos" element={<Teams />} />
                   <Route path="universidades" element={<Universities />} />
+                  <Route path="envivo" element={<Live />} />
                   <Route path="contenido" element={<Content />} />
                   <Route path="configuracion" element={<Settings />} />
                   <Route path="equipo" element={<Team />} />
