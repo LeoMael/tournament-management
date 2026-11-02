@@ -13,7 +13,11 @@ Panel de administración (React + Vite + Supabase) para el torneo RAGNAROK U-Ser
 - **Formato / Llaves**: grupos (round-robin), eliminación directa y Battle Royale; carga de resultados y publicación.
 - **Configuración**: precios, cupos, premios, fecha de cierre y datos/QR de Yape.
 - **Contenido del sitio**: PDF del reglamento por juego, secciones del reglamento, tabla de puntos y pasos de participación.
+- **Equipo** (solo admin): crear usuarios, cambiar roles y contraseñas, quitar accesos. Usa la Edge Function `manage-team` (ver `../supabase/README.md`).
 - **Auditoría**: historial de cambios.
+
+## Roles
+`admin` (todo), `editor` (solo Contenido) y `revisor_arbitro` (Inscripciones + Grupos y llaves). Definidos en `src/lib/permissions.js` y aplicados en la base por RLS.
 
 ## Seguridad
 - Solo anon key + sesión del usuario; el acceso real lo controla RLS (`is_admin()`).

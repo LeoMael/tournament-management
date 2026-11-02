@@ -4,6 +4,7 @@ import { ToastProvider } from './context/ToastContext'
 import { isConfigured } from './supabaseClient'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import RoleRoute from './components/RoleRoute'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
@@ -11,6 +12,7 @@ import Registrations from './pages/Registrations'
 import Format from './pages/Format'
 import Audit from './pages/Audit'
 import Content from './pages/Content'
+import Team from './pages/Team'
 
 export default function App() {
   if (!isConfigured) {
@@ -31,12 +33,15 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="inscripciones" element={<Registrations />} />
-                <Route path="formato" element={<Format />} />
-                <Route path="contenido" element={<Content />} />
-                <Route path="configuracion" element={<Settings />} />
-                <Route path="auditoria" element={<Audit />} />
+                <Route element={<RoleRoute />}>
+                  <Route index element={<Dashboard />} />
+                  <Route path="inscripciones" element={<Registrations />} />
+                  <Route path="formato" element={<Format />} />
+                  <Route path="contenido" element={<Content />} />
+                  <Route path="configuracion" element={<Settings />} />
+                  <Route path="equipo" element={<Team />} />
+                  <Route path="auditoria" element={<Audit />} />
+                </Route>
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

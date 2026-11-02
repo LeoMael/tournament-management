@@ -39,6 +39,7 @@ function useReview(onChanged) {
 
 function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
   const toast = useToast()
+  const { isAdmin } = useAuth()
   const [players, setPlayers] = useState(null)
   const [receipt, setReceipt] = useState({ url: null, error: null })
   const [busy, setBusy] = useState(false)
@@ -126,7 +127,7 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
         {rejecting && <button className="btn" onClick={() => setRejecting(false)} type="button">Cancelar</button>}
         {reg.status !== 'pending' && !rejecting && <button className="btn" disabled={busy} onClick={() => setStatus('pending')} type="button">Volver a pendiente</button>}
         {!editing && !rejecting && <button className="btn" onClick={() => setEditing(true)} type="button">Editar datos</button>}
-        <button className="btn btn--ghost" disabled={busy} onClick={remove} type="button" style={{ marginLeft: 'auto' }}>Eliminar</button>
+        {isAdmin && <button className="btn btn--ghost" disabled={busy} onClick={remove} type="button" style={{ marginLeft: 'auto' }}>Eliminar</button>}
       </div>
     </>
   )

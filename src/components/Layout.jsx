@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import ThemeToggle from './ThemeToggle'
+import { ROLE_LABEL, canAccess } from '../lib/permissions'
 
 const icon = (d) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
@@ -27,6 +28,7 @@ const GROUPS = [
     label: 'Sistema',
     items: [
       { to: '/configuracion', label: 'Configuración', icon: icon(<><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></>) },
+      { to: '/equipo', label: 'Equipo', icon: icon(<><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.4" /><path d="M16.5 14.2c2.6.2 4.5 2.3 4.5 4.8" /></>) },
       { to: '/auditoria', label: 'Auditoría', icon: icon(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>) },
     ],
   },
@@ -35,7 +37,7 @@ const GROUPS = [
 const TITLES = Object.fromEntries(GROUPS.flatMap((g) => g.items.map((i) => [i.to, i.label])))
 
 export default function Layout() {
-  const { user, signOut } = useAuth()
+  const { user, role, signOut } = useAuth()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(null)
 
@@ -52,7 +54,9 @@ export default function Layout() {
           <div><strong>RAGNAROK</strong><small>Admin · U-Series</small></div>
         </div>
         <nav aria-label="Principal" style={{ display: 'grid', gap: 18 }}>
-          {GROUPS.map((group) => (
+          {GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => canAccess(role, item.to)) }))
+            .filter((group) => group.items.length > 0)
+            .map((group) => (
             <div className="nav-group" key={group.label}>
               <span className="nav-label">{group.label}</span>
               {group.items.map(({ to, label, end, icon: ic }) => (
@@ -66,7 +70,7 @@ export default function Layout() {
         <div className="sidebar-foot">
           <div className="user-chip">
             <span className="avatar" aria-hidden="true">{user?.email?.[0] ?? '?'}</span>
-            <span title={user?.email}>{user?.email}</span>
+            <span title={user?.email}>{user?.email}<small style={{ display: 'block', opacity: 0.7 }}>{ROLE_LABEL[role]}</small></span>
           </div>
           <button type="button" className="btn btn--sm" onClick={signOut}>Cerrar sesión</button>
         </div>

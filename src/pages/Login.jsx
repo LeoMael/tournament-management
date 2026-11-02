@@ -3,12 +3,13 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import ThemeToggle from '../components/ThemeToggle'
+import { homeFor } from '../lib/permissions'
 
 const MAX_ATTEMPTS = 5
 const LOCK_MS = 60_000
 
 export default function Login() {
-  const { session, isAdmin, loading, denied } = useAuth()
+  const { session, role, isStaff, loading, denied } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -17,7 +18,7 @@ export default function Login() {
   const [attempts, setAttempts] = useState(0)
   const [lockedUntil, setLockedUntil] = useState(0)
 
-  if (!loading && session && isAdmin) return <Navigate to="/" replace />
+  if (!loading && session && isStaff) return <Navigate to={homeFor(role)} replace />
 
   const submit = async (event) => {
     event.preventDefault()

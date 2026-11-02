@@ -6,35 +6,36 @@ const IDLE_MS = 30 * 60 * 1000
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
 
-  const verifyAdmin = useCallback(async (nextSession) => {
-    if (!nextSession) return false
+  // Devuelve el rol del usuario (admin, editor, revisor_arbitro) o null si no pertenece al panel.
+  const fetchRole = useCallback(async (nextSession) => {
+    if (!nextSession) return null
     const { data, error } = await supabase
       .from('admins')
-      .select('user_id')
+      .select('role')
       .eq('user_id', nextSession.user.id)
       .maybeSingle()
-    return !error && Boolean(data)
+    return error ? null : data?.role ?? null
   }, [])
 
   useEffect(() => {
     let active = true
     const apply = async (nextSession) => {
-      const ok = await verifyAdmin(nextSession)
+      const nextRole = await fetchRole(nextSession)
       if (!active) return
-      if (nextSession && !ok) {
-        // Autenticado pero no es admin: cerrar sesión de inmediato.
+      if (nextSession && !nextRole) {
+        // Autenticado pero no pertenece al panel: cerrar sesión de inmediato.
         await supabase.auth.signOut()
         setSession(null)
-        setIsAdmin(false)
+        setRole(null)
         setDenied(true)
       } else {
-        if (ok) setDenied(false)
+        if (nextRole) setDenied(false)
         setSession(nextSession)
-        setIsAdmin(ok)
+        setRole(nextRole)
       }
       setLoading(false)
     }
@@ -47,7 +48,7 @@ export function AuthProvider({ children }) {
       active = false
       sub.subscription.unsubscribe()
     }
-  }, [verifyAdmin])
+  }, [fetchRole])
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
@@ -70,7 +71,10 @@ export function AuthProvider({ children }) {
     }
   }, [session])
 
-  const value = useMemo(() => ({ session, user: session?.user ?? null, isAdmin, loading, denied, signOut }), [session, isAdmin, loading, denied, signOut])
+  const value = useMemo(
+    () => ({ session, user: session?.user ?? null, role, isStaff: Boolean(role), isAdmin: role === 'admin', loading, denied, signOut }),
+    [session, role, loading, denied, signOut],
+  )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
