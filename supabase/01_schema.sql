@@ -515,6 +515,36 @@ create trigger audit_rules after insert or update or delete on public.rules_sect
   for each row execute function public.audit_trigger();
 
 -- ---------------------------------------------------------------------
+-- Cronograma: eventos libres (inauguración, descanso, premiación…).
+-- Las horas de los partidos viven en matches.scheduled_at; esto es solo para lo que no es un partido.
+-- ---------------------------------------------------------------------
+create table if not exists public.schedule_events (
+  id uuid primary key default gen_random_uuid(),
+  game_key text references public.games(key),
+  title text not null check (char_length(title) between 1 and 80),
+  starts_at timestamptz not null,
+  ends_at timestamptz check (ends_at is null or ends_at > starts_at),
+  note text not null default '' check (char_length(note) <= 200),
+  created_at timestamptz not null default now()
+);
+alter table public.schedule_events enable row level security;
+
+-- Lectura pública; escribe el admin y el revisor/árbitro. game_key vacío = vale para ambos juegos.
+drop policy if exists schedule_events_public_read on public.schedule_events;
+create policy schedule_events_public_read on public.schedule_events
+  for select to anon, authenticated using (true);
+drop policy if exists schedule_events_staff_write on public.schedule_events;
+create policy schedule_events_staff_write on public.schedule_events
+  for all to authenticated
+  using (public.has_role(array['admin', 'revisor_arbitro']))
+  with check (public.has_role(array['admin', 'revisor_arbitro']));
+revoke insert, update, delete on public.schedule_events from anon;
+
+drop trigger if exists audit_schedule_events on public.schedule_events;
+create trigger audit_schedule_events after insert or update or delete on public.schedule_events
+  for each row execute function public.audit_trigger();
+
+-- ---------------------------------------------------------------------
 -- Storage
 -- ---------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values

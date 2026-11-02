@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { battleRoyaleTotals } from '../lib/standings'
 import { resolveSlots } from '../lib/bracket'
 import { lobbyState, roomState, STATE_LABEL } from '../lib/rooms'
+import { shortDateTime } from '../lib/format'
 
 // Fase Battle Royale: un árbol a la izquierda (tabla acumulada por sala y, por cada partida, sus salas)
 // y a la derecha lo que se elige. Así cada sala se ve por separado.
@@ -107,7 +108,7 @@ export default function BrStageBody({ stage, matches, results, teams, teamName, 
                   <button type="button" className={`tree-parent ${done ? 'tree-parent--done' : ''}`} aria-expanded={rooms > 1 ? expanded : undefined}
                     onClick={() => (rooms > 1 ? toggle(m.id) : setView({ kind: 'match', room: 1, matchId: m.id }))}>
                     {rooms > 1 && <span className="tree-caret" aria-hidden="true">{expanded ? '▾' : '▸'}</span>}
-                    <b>P{m.round}</b><span>{STATE_LABEL[state]}</span>
+                    <b>P{m.round}</b><span>{STATE_LABEL[state]}{m.scheduled_at ? ` · ${shortDateTime(m.scheduled_at)}` : ''}</span>
                   </button>
                   {state === 'idle' && <button type="button" className="lobby-del" aria-label={`Eliminar partida ${m.round}`} title="Eliminar (solo pendientes)" disabled={busy} onClick={() => onDeleteLobby(m)}>×</button>}
                 </div>

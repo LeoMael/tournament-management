@@ -14,6 +14,7 @@ export const ACCESS = {
   '/equipos': ['admin', 'revisor_arbitro'],
   '/universidades': ['admin', 'revisor_arbitro'],
   '/envivo': ['admin', 'revisor_arbitro'],
+  '/cronograma': ['admin', 'revisor_arbitro'],
   '/contenido': ['admin', 'editor'],
   '/configuracion': ['admin'],
   '/equipo': ['admin'],

@@ -677,3 +677,8 @@ button.rb-btn[aria-pressed="true"] { background: var(--accent-soft); border-colo
 .roster-list .roster-sub { color: var(--muted); }
 .table-nowrap .row-detail td:last-child { position: static; box-shadow: none; }
 .table-nowrap tbody tr.row-detail:hover td { background: var(--surface-2); }
+
+/* ---------- Cronograma (panel) ---------- */
+.qa-preview { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 240px; overflow: auto; }
+.qa-preview li { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); font-size: 13px; }
+.qa-preview b { font-family: var(--mono); color: var(--accent); }
