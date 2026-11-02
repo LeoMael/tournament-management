@@ -294,11 +294,21 @@ end $$;
 -- ---------------------------------------------------------------------
 -- Vistas públicas (solo datos seguros). Corren como owner, filtran por dentro.
 -- ---------------------------------------------------------------------
-create or replace view public.public_teams as
+-- Equipos aprobados. institution = UNAP u otra institución; professional_school = carrera (puede venir vacía).
+drop view if exists public.public_teams;
+create view public.public_teams as
   select r.id, r.game_key, r.team_name, r.logo_path,
-         case when r.institution = 'UNAP' then coalesce(r.professional_school, 'UNAP')
-              else coalesce(r.other_institution, 'Otra') || coalesce(' · ' || r.professional_school, '') end as institution
+         case when r.institution = 'UNAP' then 'UNAP' else coalesce(r.other_institution, 'Otra') end as institution,
+         r.professional_school
   from public.registrations r
+  where r.status = 'approved';
+
+-- Integrantes de los equipos aprobados: solo apodo, puesto en el roster y si es suplente.
+-- NO expone IDs de juego, server ni datos del capitán.
+create or replace view public.public_team_players as
+  select p.registration_id, p.slot, p.is_substitute, p.nickname
+  from public.players p
+  join public.registrations r on r.id = p.registration_id
   where r.status = 'approved';
 
 create or replace view public.public_stages as
@@ -349,9 +359,9 @@ create or replace view public.public_availability as
 revoke all on public.public_availability from public;
 grant select on public.public_availability to anon, authenticated;
 
-revoke all on public.public_teams, public.public_stages, public.public_groups,
+revoke all on public.public_teams, public.public_team_players, public.public_stages, public.public_groups,
   public.public_group_teams, public.public_matches, public.public_match_results from public;
-grant select on public.public_teams, public.public_stages, public.public_groups,
+grant select on public.public_teams, public.public_team_players, public.public_stages, public.public_groups,
   public.public_group_teams, public.public_matches, public.public_match_results to anon, authenticated;
 
 -- ---------------------------------------------------------------------

@@ -14,7 +14,7 @@ export function PageHeader({ eyebrow, title, subtitle, actions }) {
   )
 }
 
-export function Modal({ title, onClose, children, footer, wide = false, closeOnBackdrop = false }) {
+export function Modal({ title, onClose, children, footer, wide = false, xwide = false, closeOnBackdrop = false }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -22,7 +22,7 @@ export function Modal({ title, onClose, children, footer, wide = false, closeOnB
   }, [onClose])
   return (
     <div className="modal-backdrop" onMouseDown={closeOnBackdrop ? (e) => e.target === e.currentTarget && onClose() : undefined}>
-      <div className={`modal ${wide ? 'modal--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`modal ${wide ? 'modal--wide' : ''} ${xwide ? 'modal--xwide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-head">
           <h2>{title}</h2>
           <button type="button" className="btn btn--ghost" onClick={onClose} aria-label="Cerrar">Cerrar</button>

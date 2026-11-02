@@ -94,7 +94,7 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
   }
 
   return (
-    <Modal title="Nueva fase" onClose={onClose} wide={form.type === 'battle_royale'}>
+    <Modal title="Nueva fase" onClose={onClose} xwide={form.type === 'battle_royale'}>
       <form onSubmit={create} className="grid" style={{ gap: '.9rem' }}>
         <p className="hint">El sorteo es aleatorio entre los equipos aprobados de {GAME_LABEL[gameKey]}.</p>
         <div className="form-row">
@@ -135,13 +135,6 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
                 <h3>1 · Salas y equipos por sala</h3>
                 <RoomSizesEditor total={teams.length} sizes={roomSizes} onChange={setRoomSizes} />
               </section>
-              <section className="nf-section">
-                <h3>3 · Clasificación (opcional)</h3>
-                <label className="field" style={{ maxWidth: 260 }}><span>{roomSizes.length > 1 ? 'Pasan por sala' : 'Pasan a la siguiente fase'}</span>
-                  <input type="number" min="1" max={Math.min(...roomSizes)} placeholder="Ej.: 6" value={form.qualify_count} onChange={(e) => set('qualify_count', e.target.value)} />
-                </label>
-                {Number(form.qualify_count) >= 1 && <p className="hint">Pasarán <b>{roomSizes.reduce((sum, size) => sum + Math.min(size, Number(form.qualify_count)), 0)}</b> equipos en total.</p>}
-              </section>
             </div>
             <div className="nf-col">
               <section className="nf-section">
@@ -152,9 +145,19 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
                   onReset={() => setForm((f) => ({ ...f, placement: DEFAULT_PLACEMENT_POINTS.map(String), kill_points: '1' }))} />
               </section>
             </div>
+            <div className="nf-col">
+              <section className="nf-section">
+                <h3>3 · Clasificación (opcional)</h3>
+                <label className="field"><span>{roomSizes.length > 1 ? 'Pasan por sala' : 'Pasan a la siguiente fase'}</span>
+                  <input type="number" min="1" max={Math.min(...roomSizes)} placeholder="Ej.: 6" value={form.qualify_count} onChange={(e) => set('qualify_count', e.target.value)} />
+                </label>
+                {Number(form.qualify_count) >= 1 && <p className="hint">Pasarán <b>{roomSizes.reduce((sum, size) => sum + Math.min(size, Number(form.qualify_count)), 0)}</b> equipos en total.</p>}
+              </section>
+              <StagePreview type={form.type} total={teams.length} config={{ ...form }} roundBo={roundBo} roomSizes={roomSizes} />
+            </div>
           </div>
         )}
-        <StagePreview type={form.type} total={teams.length} config={{ ...form, qualify_per_group: Math.min(form.qualify_per_group, maxQualify(teams.length, form.groups)) }} roundBo={roundBo} roomSizes={roomSizes} />
+        {form.type !== 'battle_royale' && <StagePreview type={form.type} total={teams.length} config={{ ...form, qualify_per_group: Math.min(form.qualify_per_group, maxQualify(teams.length, form.groups)) }} roundBo={roundBo} />}
         <button className="btn btn--primary" disabled={busy} type="submit">{busy ? 'Generando…' : 'Generar fase'}</button>
       </form>
     </Modal>
