@@ -21,6 +21,8 @@ const GROUPS = [
     label: 'Torneo',
     items: [
       { to: '/formato', label: 'Grupos y llaves', icon: icon(<><path d="M4 5h5v4H4zM4 15h5v4H4zM15 10h5v4h-5z" /><path d="M9 7h3v10H9M12 12h3" /></>) },
+      { to: '/equipos', label: 'Equipos y puntos', icon: icon(<><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3" /></>) },
+      { to: '/universidades', label: 'Universidades y carreras', icon: icon(<><path d="M3 9l9-5 9 5-9 5z" /><path d="M7 11.5V16c0 1.2 2.2 2.5 5 2.5s5-1.3 5-2.5v-4.5M21 9v6" /></>) },
       { to: '/contenido', label: 'Contenido del sitio', icon: icon(<><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></>) },
     ],
   },

@@ -122,3 +122,177 @@ export function brPoints(placement, kills, config) {
   const killPts = config?.kill_points ?? 1
   return (table[placement - 1] ?? 0) + kills * killPts
 }
+
+// Cruce sin rival (bye): tiene un solo equipo, que pasa solo a la siguiente ronda.
+export const isBye = (m) => m.status === 'completed' && Boolean(m.winner_id) && !m.team_a !== !m.team_b
+// Cruce sin ningún equipo (los dos lados vacíos): no se juega y no manda a nadie a la siguiente ronda.
+export const isDead = (m) => m.status === 'completed' && !m.winner_id && !m.team_a && !m.team_b
+
+// Numera los cruces reales (sin byes) por ronda y posición: M1, M2…
+export function numberMatches(matches) {
+  const map = new Map()
+  let n = 0
+  ;[...matches].sort((a, b) => a.round - b.round || a.position - b.position).forEach((m) => {
+    if (!isBye(m) && !isDead(m)) map.set(m.id, ++n)
+  })
+  return map
+}
+
+// Texto de un cupo vacío: "Ganador M3" (el cruce que lo alimenta) o "Por definir".
+export function pendingLabel(match, side, matches, numbers) {
+  if (match.round === 1) return 'Por definir'
+  const feeder = matches.find((m) => m.round === match.round - 1 && m.position === match.position * 2 + (side === 'a' ? 0 : 1))
+  const n = feeder && numbers.get(feeder.id)
+  if (feeder && isDead(feeder)) return 'Sin rival'
+  return n ? `Ganador M${n}` : 'Por definir'
+}
+
+// Formato sugerido por ronda: las primeras a BO1 y las últimas (semifinal y final) a BO3.
+export const defaultRoundBo = (index, rounds) => (index >= rounds - 2 && rounds >= 2 ? 3 : rounds === 1 ? 3 : 1)
+
+// Vista previa de lo que generaría una fase con `n` equipos (sin crear nada).
+export function previewStage(type, n, config, names = null) {
+  if (type === 'groups') {
+    const g = Math.max(1, Math.floor(Number(config.groups) || 1))
+    const sizes = Array.from({ length: g }, (_, i) => Math.floor(n / g) + (i < n % g ? 1 : 0))
+    const matches = sizes.reduce((sum, s) => sum + (s * (s - 1)) / 2, 0)
+    const qualify = Math.max(1, Math.floor(Number(config.qualify_per_group) || 0))
+    const advancing = sizes.reduce((sum, s) => sum + Math.min(qualify, s), 0)
+    return { kind: 'groups', sizes, matches, qualify, advancing, valid: n >= 2 && g <= Math.floor(n / 2) }
+  }
+  if (type === 'single_elim') {
+    if (n < 2) return { kind: 'single_elim', valid: false }
+    const size = 2 ** Math.ceil(Math.log2(n))
+    const byes = size - n
+    const rounds = Math.log2(size)
+    const order = seedOrder(size)
+    // Esquema de la llave: cada cruce con sus dos cupos nombrados (Equipo 3, Bye, Ganador M2…).
+    const seedName = (seed) => names?.[seed - 1] ?? `Equipo ${seed}`
+    let number = 0
+    const columns = []
+    for (let r = 1; r <= rounds; r++) {
+      const boxes = []
+      for (let p = 0; p < size / 2 ** r; p++) {
+        if (r === 1) {
+          const sa = order[p * 2]
+          const sb = order[p * 2 + 1]
+          const bye = sa > n || sb > n
+          boxes.push({ key: `1-${p}`, bye, number: bye ? null : ++number, a: sa > n ? 'Bye' : seedName(sa), b: sb > n ? 'Bye' : seedName(sb) })
+        } else {
+          const feed = (k) => {
+            const f = columns[r - 2].boxes[p * 2 + k]
+            return f.bye ? (f.a === 'Bye' ? f.b : f.a) : `Ganador M${f.number}`
+          }
+          boxes.push({ key: `${r}-${p}`, bye: false, number: ++number, a: feed(0), b: feed(1) })
+        }
+      }
+      columns.push({ round: r, boxes })
+    }
+    return { kind: 'single_elim', size, byes, rounds, columns, matches: number, valid: true }
+  }
+  const lobbies = Math.floor(Number(config.lobbies) || 0)
+  return { kind: 'battle_royale', lobbies, valid: n >= 2 && lobbies >= 1 && lobbies <= 20 }
+}
+
+// Clasificados de una fase de grupos: los `perGroup` mejores de cada grupo (puntos, luego diferencia).
+// `tie` marca a quienes empatan en el corte para que el organizador decida a mano.
+export function groupQualifiers(groups, groupTeams, matches, perGroup) {
+  const out = []
+  for (const g of groups) {
+    const ids = groupTeams.filter((x) => x.group_id === g.id).map((x) => x.registration_id)
+    const rows = groupStandings(ids, matches.filter((m) => m.group_id === g.id))
+    const cut = rows[perGroup - 1]
+    const after = rows[perGroup]
+    const tie = Boolean(cut && after && cut.points === after.points && cut.diff === after.diff)
+    rows.forEach((r, i) => out.push({
+      id: r.id, group: g.name, rank: i + 1, points: r.points, diff: r.diff,
+      qualified: i < perGroup, tie: tie && (i === perGroup - 1 || i === perGroup),
+    }))
+  }
+  return out
+}
+
+// Orden de siembra para la llave: primeros de cada grupo, luego segundos, etc., evitando
+// en lo posible que en la primera ronda se enfrenten dos equipos del mismo grupo.
+export function crossSeed(entries) {
+  const list = [...entries].sort((a, b) => a.rank - b.rank || a.group.localeCompare(b.group))
+  const n = list.length
+  if (n >= 4) {
+    const size = 2 ** Math.ceil(Math.log2(n))
+    const order = seedOrder(size)
+    const pairs = []
+    for (let i = 0; i < size; i += 2) pairs.push([order[i] - 1, order[i + 1] - 1])
+    const clash = (i, j) => i < n && j < n && list[i].group === list[j].group
+    for (const p of pairs) {
+      if (!clash(p[0], p[1])) continue
+      const low = Math.max(p[0], p[1])
+      const high = p[0] === low ? p[1] : p[0]
+      for (const q of pairs) {
+        if (q === p) continue
+        const swapWith = q.find((i) => i < n && i !== low && list[i].rank === list[low].rank)
+        if (swapWith === undefined) continue
+        const other = q[0] === swapWith ? q[1] : q[0]
+        if (!clash(high, swapWith) && !clash(other, low)) {
+          ;[list[low], list[swapWith]] = [list[swapWith], list[low]]
+          break
+        }
+      }
+    }
+  }
+  return list.map((e) => e.id)
+}
+
+// Máximo de clasificados por grupo que tiene sentido: uno menos que el grupo más pequeño (mínimo 1).
+export const maxQualify = (n, groups) => Math.max(1, Math.floor(n / Math.max(1, groups)) - 1)
+
+// "Clasifica el primero de cada grupo" / "Clasifican los 2 primeros de cada grupo".
+export const qualifyText = (n) => (n === 1 ? 'Clasifica el primero de cada grupo' : `Clasifican los ${n} primeros de cada grupo`)
+
+// Acomoda la llave tras un cambio (emparejamientos o un resultado): pasa a cada cruce los ganadores de
+// los anteriores y resuelve solo los byes en cadena. Un cruce con un equipo y el otro lado sin rival pasa
+// directo; uno con los dos lados vacíos queda "sin equipos". Los cruces ya jugados (con marcador) no se tocan.
+export function settleBracket(matches) {
+  const list = matches.map((m) => ({ ...m }))
+  const at = (round, position) => list.find((m) => m.round === round && m.position === position)
+  const total = list.reduce((max, m) => Math.max(max, m.round), 0)
+  for (let r = 1; r <= total; r++) {
+    for (const m of list.filter((x) => x.round === r).sort((a, b) => a.position - b.position)) {
+      let deadA
+      let deadB
+      if (r === 1) {
+        deadA = !m.team_a
+        deadB = !m.team_b
+      } else {
+        const fa = at(r - 1, m.position * 2)
+        const fb = at(r - 1, m.position * 2 + 1)
+        m.team_a = fa?.winner_id ?? null
+        m.team_b = fb?.winner_id ?? null
+        deadA = Boolean(fa) && isDead(fa)
+        deadB = Boolean(fb) && isDead(fb)
+      }
+      if (m.score_a !== null && m.score_a !== undefined) continue // ya jugado
+      const hasA = Boolean(m.team_a)
+      const hasB = Boolean(m.team_b)
+      m.score_a = null
+      m.score_b = null
+      m.winner_id = null
+      m.status = 'scheduled'
+      if (!hasA && !hasB) {
+        if (deadA && deadB) m.status = 'completed'
+      } else if (hasA !== hasB && (hasA ? deadB : deadA)) {
+        m.status = 'completed'
+        m.winner_id = m.team_a ?? m.team_b
+      }
+    }
+  }
+  return list
+}
+
+// Llave "en borrador" mientras se editan los emparejamientos: aplica los lugares elegidos a la ronda 1
+// y recalcula todo lo demás, sin tocar la base. `slots` = [a1, b1, a2, b2, …] (null = lugar vacío).
+export function draftBracket(matches, slots) {
+  const blank = { status: 'scheduled', winner_id: null, score_a: null, score_b: null }
+  return settleBracket(matches.map((m) => (m.round === 1
+    ? { ...m, ...blank, team_a: slots[m.position * 2] ?? null, team_b: slots[m.position * 2 + 1] ?? null }
+    : { ...m, ...blank, team_a: null, team_b: null })))
+}

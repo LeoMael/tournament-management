@@ -164,13 +164,25 @@ create table if not exists public.registrations (
   logo_path text,
   receipt_path text not null unique,
   amount_due numeric(8,2) not null,
-  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'withdrawn')),
+  withdrawn_at timestamptz,
+  withdrawal_reason text check (withdrawal_reason is null or char_length(withdrawal_reason) <= 300),
   rejection_reason text check (rejection_reason is null or char_length(rejection_reason) <= 300),
   observation text check (observation is null or char_length(observation) <= 500),
   reviewed_by uuid references auth.users(id),
   reviewed_at timestamptz,
   created_at timestamptz not null default now()
 );
+-- Para bases ya creadas: agrega el estado 'withdrawn' (equipo retirado) y sus columnas.
+-- Un equipo retirado libera su cupo y sus jugadores (el cupo y los duplicados solo cuentan pending/approved).
+alter table public.registrations add column if not exists withdrawn_at timestamptz;
+alter table public.registrations add column if not exists withdrawal_reason text;
+alter table public.registrations drop constraint if exists registrations_withdrawal_reason_check;
+alter table public.registrations add constraint registrations_withdrawal_reason_check
+  check (withdrawal_reason is null or char_length(withdrawal_reason) <= 300);
+alter table public.registrations drop constraint if exists registrations_status_check;
+alter table public.registrations add constraint registrations_status_check
+  check (status in ('pending', 'approved', 'rejected', 'withdrawn'));
 create unique index if not exists registrations_team_unique
   on public.registrations (game_key, lower(team_name));
 create index if not exists registrations_status_idx on public.registrations (game_key, status);

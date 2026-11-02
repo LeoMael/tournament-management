@@ -29,6 +29,7 @@ function useReview(onChanged) {
       status, rejection_reason: rejectionReason,
       reviewed_by: status === 'pending' ? null : user.id,
       reviewed_at: status === 'pending' ? null : new Date().toISOString(),
+      withdrawn_at: null, withdrawal_reason: null,
     }).eq('id', reg.id)
     if (error) { toast.error(error.message); return false }
     toast.success(`${reg.team_name}: ${STATUS_LABEL[status].toLowerCase()}.`)
@@ -243,7 +244,7 @@ export default function Registrations() {
     const inGame = byGame(filters.game)
     return {
       game: { '': all.length, mlbb: byGame('mlbb').length, ff: byGame('ff').length },
-      status: { '': inGame.length, pending: inGame.filter((r) => r.status === 'pending').length, approved: inGame.filter((r) => r.status === 'approved').length, rejected: inGame.filter((r) => r.status === 'rejected').length },
+      status: { '': inGame.length, pending: inGame.filter((r) => r.status === 'pending').length, approved: inGame.filter((r) => r.status === 'approved').length, rejected: inGame.filter((r) => r.status === 'rejected').length, withdrawn: inGame.filter((r) => r.status === 'withdrawn').length },
     }
   }, [rows, filters.game])
 
@@ -286,7 +287,7 @@ export default function Registrations() {
           ))}
         </div>
         <div className="seg" role="group" aria-label="Estado">
-          {[['', 'Todos'], ['pending', 'Pendientes'], ['approved', 'Aprobados'], ['rejected', 'Rechazados']].map(([value, label]) => (
+          {[['', 'Todos'], ['pending', 'Pendientes'], ['approved', 'Aprobados'], ['rejected', 'Rechazados'], ['withdrawn', 'Retirados']].map(([value, label]) => (
             <button key={value} type="button" className={`seg-btn seg-btn--${value || 'all'} ${filters.status === value ? 'seg-btn--on' : ''}`} aria-pressed={filters.status === value} onClick={() => setFilters({ ...filters, status: value })}>
               {label}<span className="seg-count">{counts.status[value]}</span>
             </button>
@@ -317,7 +318,7 @@ export default function Registrations() {
                     <div className="row-actions row-actions--end">
                       <button className="btn btn--sm" onClick={() => setSelected({ reg: r })} type="button">Ver</button>
                       {r.status !== 'approved' && <button className="btn btn--sm btn--ok" disabled={busyId === r.id} onClick={() => quickApprove(r)} type="button">Aprobar</button>}
-                      {r.status !== 'rejected' && <button className="btn btn--sm btn--bad" onClick={() => setSelected({ reg: r, reject: true })} type="button">Rechazar</button>}
+                      {r.status !== 'rejected' && r.status !== 'withdrawn' && <button className="btn btn--sm btn--bad" onClick={() => setSelected({ reg: r, reject: true })} type="button">Rechazar</button>}
                     </div>
                   </td>
                 </tr>

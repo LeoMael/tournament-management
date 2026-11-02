@@ -13,7 +13,7 @@ export const toLocalInput = (iso) => {
 }
 
 export const GAME_LABEL = { mlbb: 'MLBB', ff: 'Free Fire' }
-export const STATUS_LABEL = { pending: 'Pendiente', approved: 'Aprobado', rejected: 'Rechazado' }
+export const STATUS_LABEL = { pending: 'Pendiente', approved: 'Aprobado', rejected: 'Rechazado', withdrawn: 'Retirado' }
 
 export const whatsappUrl = (number) => {
   let digits = String(number || '').replace(/\D/g, '')
@@ -26,4 +26,16 @@ export const uuid = () => crypto.randomUUID()
 export const extFromFile = (file) => {
   const map = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'application/pdf': 'pdf', 'audio/mpeg': 'mp3', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/aac': 'aac' }
   return map[file.type] || null
+}
+
+// Hora compacta para chips: "Hoy 20:00", "Mañana 18:30" o "3 nov 20:00".
+export const shortDateTime = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const time = d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const days = Math.round((startOfDay(d) - startOfDay(new Date())) / 86400000)
+  if (days === 0) return `Hoy ${time}`
+  if (days === 1) return `Mañana ${time}`
+  return `${d.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }).replace('.', '')} ${time}`
 }

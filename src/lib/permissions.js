@@ -11,6 +11,8 @@ export const ACCESS = {
   '/': ['admin', 'revisor_arbitro'],
   '/inscripciones': ['admin', 'revisor_arbitro'],
   '/formato': ['admin', 'revisor_arbitro'],
+  '/equipos': ['admin', 'revisor_arbitro'],
+  '/universidades': ['admin', 'revisor_arbitro'],
   '/contenido': ['admin', 'editor'],
   '/configuracion': ['admin'],
   '/equipo': ['admin'],

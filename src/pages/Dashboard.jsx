@@ -42,7 +42,7 @@ export default function Dashboard() {
       <div className="grid grid--2" style={{ marginBottom: '1rem' }}>
         {games.map((g) => {
           const mine = regs.filter((r) => r.game_key === g.key)
-          const used = mine.filter((r) => r.status !== 'rejected').length
+          const used = mine.filter((r) => r.status === 'pending' || r.status === 'approved').length
           return (
             <div key={g.key} className="card game-card">
               <div className="game-card-head">
@@ -52,7 +52,7 @@ export default function Dashboard() {
               <div><span className="big-fig">{used}</span> <span className="hint" style={{ display: 'inline' }}>de {g.max_teams} cupos ocupados, quedan {g.max_teams - used}</span></div>
               <div className="bar" role="img" aria-label={`${used} de ${g.max_teams} cupos`}><i style={{ width: `${Math.min(100, (used / g.max_teams) * 100)}%` }} /></div>
               <p className="hint">
-                Aprobados {mine.filter((r) => r.status === 'approved').length} · Pendientes {mine.filter((r) => r.status === 'pending').length} · Rechazados {mine.filter((r) => r.status === 'rejected').length}
+                Aprobados {mine.filter((r) => r.status === 'approved').length} · Pendientes {mine.filter((r) => r.status === 'pending').length} · Rechazados {mine.filter((r) => r.status === 'rejected').length} · Retirados {mine.filter((r) => r.status === 'withdrawn').length}
               </p>
             </div>
           )
