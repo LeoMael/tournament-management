@@ -663,3 +663,17 @@ button.rb-btn[aria-pressed="true"] { background: var(--accent-soft); border-colo
 .live-url { flex: 1; }
 .live-url[aria-invalid="true"] { border-color: var(--bad); }
 .live-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- Equipos y puntos: integrantes desplegables ---------- */
+.members-toggle { align-self: flex-start; border: 0; background: transparent; padding: 0; color: var(--accent); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.members-toggle:hover { text-decoration: underline; }
+.row-detail td { background: var(--surface-2) !important; padding: 0 !important; white-space: normal !important; }
+.roster { padding: 12px 18px 16px 60px; display: grid; gap: 10px; }
+.roster-meta { margin: 0; color: var(--muted); font-size: 12.5px; }
+.roster-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.roster-list li { display: grid; grid-template-columns: auto auto; column-gap: 8px; align-items: baseline; padding: 7px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-size: 13px; }
+.roster-list li small { grid-column: 1 / -1; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.roster-list em { font-style: normal; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--accent); }
+.roster-list .roster-sub { color: var(--muted); }
+.table-nowrap .row-detail td:last-child { position: static; box-shadow: none; }
+.table-nowrap tbody tr.row-detail:hover td { background: var(--surface-2); }

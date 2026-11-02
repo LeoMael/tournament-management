@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useToast } from '../context/ToastContext'
 import { ErrorBox, Modal, PageHeader, Spinner, StatusBadge } from '../components/ui'
 import { GAME_LABEL } from '../lib/format'
 import { publicUrl } from '../lib/storage'
 import { computeStandings, teamPhases } from '../lib/standings'
+import { resolveSlots } from '../lib/bracket'
+import { roomOfStage } from '../lib/rooms'
 
 function WithdrawModal({ team, onClose, onDone }) {
   const toast = useToast()
@@ -53,17 +55,19 @@ export default function Teams() {
   const [withdrawing, setWithdrawing] = useState(null)
   const [onlyPlaying, setOnlyPlaying] = useState(false)
   const [busyId, setBusyId] = useState(null)
+  const [openId, setOpenId] = useState(null) // equipo con los integrantes desplegados
 
   const load = useCallback(async () => {
-    const [regs, stages, matches, results] = await Promise.all([
-      supabase.from('registrations').select('id, game_key, team_name, logo_path, status, withdrawal_reason').in('status', ['approved', 'withdrawn']),
+    const [regs, stages, matches, results, players] = await Promise.all([
+      supabase.from('registrations').select('id, game_key, team_name, logo_path, status, withdrawal_reason, institution, other_institution, professional_school').in('status', ['approved', 'withdrawn']),
       supabase.from('stages').select('id, game_key, type, name, position, created_at, config'),
       supabase.from('matches').select('id, stage_id, team_a, team_b, score_a, score_b, status, winner_id'),
       supabase.from('match_results').select('match_id, registration_id, placement, kills, points'),
+      supabase.from('players').select('registration_id, slot, is_substitute, nickname, game_player_id, server_id').order('slot'),
     ])
-    const err = regs.error || stages.error || matches.error || results.error
+    const err = regs.error || stages.error || matches.error || results.error || players.error
     if (err) setError(err.message)
-    else { setData({ regs: regs.data, stages: stages.data, matches: matches.data, results: results.data }); setError(null) }
+    else { setData({ regs: regs.data, stages: stages.data, matches: matches.data, results: results.data, players: players.data }); setError(null) }
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -76,6 +80,23 @@ export default function Teams() {
       phases: teamPhases(teams, stages, data.matches, data.results),
       stageCount: stages.length,
     }
+  }, [data, game])
+
+  // Integrantes de cada equipo.
+  const playersByTeam = useMemo(() => {
+    const map = new Map()
+    ;(data?.players ?? []).forEach((p) => map.set(p.registration_id, [...(map.get(p.registration_id) ?? []), p]))
+    return map
+  }, [data])
+
+  // Sala y lugar fijo de cada equipo, según la última fase Battle Royale del juego.
+  const placing = useMemo(() => {
+    const stage = (data?.stages ?? []).filter((s) => s.game_key === game && s.type === 'battle_royale')
+      .sort((a, b) => a.position - b.position || String(a.created_at).localeCompare(String(b.created_at))).at(-1)
+    if (!stage) return null
+    const participants = (data.regs ?? []).filter((t) => t.game_key === game && t.status === 'approved' && (!stage.config?.participants || stage.config.participants.includes(t.id)))
+    const roomOf = roomOfStage(stage)
+    return { rooms: Number(stage.config?.rooms) || 1, roomOf, slots: resolveSlots(participants, roomOf, stage.config?.slot_of), ids: new Set(participants.map((t) => t.id)) }
   }, [data, game])
 
   const counts = useMemo(() => {
@@ -101,6 +122,8 @@ export default function Teams() {
   const maxPoints = Math.max(0, ...rows.map((r) => r.points))
   const leader = rows[0]?.rank && rows[0].points > 0 ? rows[0] : null
   const isBr = data.stages.some((s) => s.game_key === game && s.type === 'battle_royale')
+  const slotCols = placing ? (placing.rooms > 1 ? 2 : 1) : 0
+  const colCount = 3 + slotCols + (stageCount > 0 ? 1 : 0) + 2 + (isBr ? 1 : 2) + 3
   return (
     <>
       <PageHeader eyebrow="Torneo" title="Equipos y puntos" subtitle={`${active} equipos aprobados en competencia${rows.length > active ? ` · ${rows.length - active} retirados` : ''}.`} />
@@ -130,6 +153,7 @@ export default function Teams() {
           <thead>
             <tr>
               <th className="num">#</th><th></th><th>Equipo</th>
+              {placing?.rooms > 1 && <th>Sala</th>}{placing && <th title="Lugar del equipo en la sala">Lugar</th>}
               {stageCount > 0 && <th>Fase</th>}<th className="num" title="Partidos jugados">PJ</th><th className="num" title={isBr ? 'Booyahs' : 'Victorias'}>{isBr ? 'Booyah' : 'G'}</th>
               {!isBr && <th className="num" title="Derrotas">P</th>}
               {!isBr && <th className="num" title="Diferencia de marcador">Dif</th>}
@@ -141,16 +165,25 @@ export default function Teams() {
             {shown.map(({ team, rank, played, wins, losses, diff, kills, points }) => {
               const logo = publicUrl('team-logos', team.logo_path)
               const out = team.status === 'withdrawn'
+              const members = playersByTeam.get(team.id) ?? []
+              const open = openId === team.id
+              const inRoom = placing?.ids.has(team.id)
               return (
-                <tr key={team.id} className={out ? 'row--withdrawn' : undefined}>
+                <Fragment key={team.id}>
+                <tr className={out ? 'row--withdrawn' : undefined}>
                   <td className="num"><span className={`rank ${rank && rank <= 3 && points > 0 ? 'rank--top' : ''}`}>{rank ?? '—'}</span></td>
                   <td>{logo ? <img src={logo} alt="" className="logo-thumb" loading="lazy" /> : <div className="logo-thumb logo-thumb--empty" aria-hidden="true">{team.team_name[0]}</div>}</td>
                   <td>
                     <div className="team-cell">
                       <span className="team-name">{team.team_name}</span>
+                      <button type="button" className="members-toggle" aria-expanded={open} onClick={() => setOpenId(open ? null : team.id)}>
+                        Integrantes ({members.length}) {open ? '▾' : '▸'}
+                      </button>
                       {out && team.withdrawal_reason && <span className="obs-line" title={team.withdrawal_reason}>{team.withdrawal_reason}</span>}
                     </div>
                   </td>
+                  {placing?.rooms > 1 && <td>{inRoom ? <span className="slot-chip">Sala {placing.roomOf(team.id)}</span> : '—'}</td>}
+                  {placing && <td>{inRoom ? <span className="slot-chip" title="Lugar fijo en la sala">{placing.slots[team.id]}</span> : '—'}</td>}
                   {stageCount > 0 && <td>{phases.get(team.id) ? <span className={`badge badge--phase-${phases.get(team.id).tone}`}>{phases.get(team.id).label}</span> : '—'}</td>}
                   <td className="num">{played}</td>
                   <td className="num">{wins}</td>
@@ -167,6 +200,32 @@ export default function Teams() {
                     </div>
                   </td>
                 </tr>
+                {open && (
+                  <tr className="row-detail">
+                    <td colSpan={colCount}>
+                      <div className="roster">
+                        <p className="roster-meta">
+                          {team.institution === 'UNAP' ? 'UNAP' : team.other_institution || 'Otra institución'}
+                          {team.professional_school ? ` · ${team.professional_school}` : ''}
+                          {placing?.rooms > 1 && inRoom ? ` · Sala ${placing.roomOf(team.id)}` : ''}
+                          {placing && inRoom ? ` · Lugar ${placing.slots[team.id]}` : ''}
+                        </p>
+                        {members.length === 0 ? <p className="hint">Sin integrantes registrados.</p> : (
+                          <ul className="roster-list">
+                            {members.map((p) => (
+                              <li key={p.slot}>
+                                <b>{p.nickname}</b>
+                                {p.slot === 1 && <em>CAP</em>}{p.is_substitute && <em className="roster-sub">SUP</em>}
+                                <small>ID {p.game_player_id}{p.server_id ? ` · Server ${p.server_id}` : ''}</small>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               )
             })}
           </tbody>
