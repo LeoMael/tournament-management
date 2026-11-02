@@ -110,7 +110,8 @@ begin
   end if;
   for item in select * from jsonb_array_elements(links) loop
     if jsonb_typeof(item) <> 'object'
-       or coalesce(item ->> 'url', '') !~ '^https://[^\s<>"]{3,300}$'
+       or coalesce(item ->> 'url', '') !~ '^https://[^\s<>"]+$'
+       or char_length(item ->> 'url') > 300
        or char_length(coalesce(item ->> 'platform', '')) not between 1 and 30 then
       return false;
     end if;
@@ -238,11 +239,14 @@ create table if not exists public.players (
   game_key text not null,
   slot smallint not null,
   is_substitute boolean not null default false,
-  nickname text not null check (char_length(nickname) between 1 and 30),
+  nickname text not null check (char_length(nickname) between 1 and 50),
   game_player_id text not null check (game_player_id ~ '^[0-9]{5,15}$'),
   server_id text check (server_id is null or server_id ~ '^[0-9]{1,6}$'),
   unique (registration_id, slot)
 );
+-- Para bases ya creadas: los apodos pueden tener hasta 50 caracteres.
+alter table public.players drop constraint if exists players_nickname_check;
+alter table public.players add constraint players_nickname_check check (char_length(nickname) between 1 and 50);
 create index if not exists players_lookup_idx on public.players (game_key, game_player_id);
 
 alter table public.registrations enable row level security;
@@ -610,7 +614,8 @@ begin
     raise exception 'Las inscripciones de esta disciplina están cerradas.' using errcode = 'P0001';
   end if;
 
-  if v_team ~ '[\x00-\x1f\x7f<>]' or v_captain ~ '[\x00-\x1f\x7f<>]'
+  -- Los nombres de equipo y los apodos pueden llevar símbolos raros; solo se rechazan caracteres de control.
+  if v_team ~ '[\x01-\x1f\x7f]' or v_captain ~ '[\x00-\x1f\x7f<>]'
      or coalesce(v_school, '') ~ '[\x00-\x1f\x7f<>]' or coalesce(v_other, '') ~ '[\x00-\x1f\x7f<>]' then
     raise exception 'Los textos contienen caracteres no permitidos.' using errcode = 'P0001';
   end if;
@@ -684,8 +689,11 @@ begin
       end if;
       continue;
     end if;
-    if char_length(v_nick) not between 1 and 30 or v_pid !~ '^[0-9]{5,15}$' then
-      raise exception 'Datos de jugador inválidos (slot %).', v_i + 1 using errcode = 'P0001';
+    if char_length(v_nick) not between 1 and 50 then
+      raise exception 'El nickname del jugador % debe tener entre 1 y 50 caracteres.', v_i + 1 using errcode = 'P0001';
+    end if;
+    if v_pid !~ '^[0-9]{5,15}$' then
+      raise exception 'El ID del jugador % debe tener entre 5 y 15 dígitos.', v_i + 1 using errcode = 'P0001';
     end if;
     if exists (
       select 1 from players p join registrations r on r.id = p.registration_id
