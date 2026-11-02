@@ -9,8 +9,7 @@ Pensado para desarrollo: pocos archivos, todos en el SQL Editor y en este orden.
 | `02_seed.sql` | Datos iniciales = lo que hoy muestra el sitio (precios, premios, reglamento, pasos). |
 | `03_admin.sql` | Registra al **primer** administrador (cambia el correo antes). El resto del equipo se gestiona desde el panel → **Equipo**. |
 | `functions/manage-team/` | Edge Function que el panel usa para crear usuarios, cambiar roles y contraseñas. Hay que desplegarla (ver abajo). |
-| `extras/test_teams.sql` | (Opcional) 28 equipos de prueba. `test_teams_cleanup.sql` los borra. |
-| `extras/test_teams_ff_24.sql` | (Opcional) 24 equipos de Free Fire, todos aprobados, para probar salas (más de 12 equipos). Reemplaza los de prueba de Free Fire. |
+| `extras/test_teams.sql` | (Opcional) Datos de prueba en un solo script: 16 equipos MLBB y 24 de Free Fire (todos aprobados, 2 salas de 12). Repetible. `test_teams_cleanup.sql` los borra. |
 
 ## Primera vez
 1. Crea el proyecto en https://supabase.com.

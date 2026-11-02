@@ -115,7 +115,8 @@ export function groupStandings(teamIds, matches) {
   return [...rows.values()].sort((x, y) => y.points - x.points || y.diff - x.diff)
 }
 
-export const DEFAULT_PLACEMENT_POINTS = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0]
+// Reglamento de Free Fire: 1.º 12 pts, 2.º 9, 3.º 8, … 9.º 2 y del 10.º al 12.º 1 pt; +1 por kill.
+export const DEFAULT_PLACEMENT_POINTS = [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1, 1]
 
 export function brPoints(placement, kills, config) {
   const table = config?.placement_points ?? DEFAULT_PLACEMENT_POINTS
@@ -300,3 +301,49 @@ export function draftBracket(matches, slots) {
 // Una sala de Free Fire admite hasta 12 escuadras. Con más equipos hacen falta varias salas.
 export const ROOM_SIZE = 12
 export const roomsNeeded = (teamCount) => Math.max(1, Math.ceil(teamCount / ROOM_SIZE))
+
+// Reparte equipos al azar y por igual en `rooms` salas: { id: sala }.
+export function distributeRooms(ids, rooms) {
+  const out = {}
+  shuffle(ids).forEach((id, i) => { out[id] = (i % rooms) + 1 })
+  return out
+}
+
+// Número fijo de cada equipo dentro de su sala (1…12): es su identificación y no cambia con la clasificación.
+// Conserva los guardados (válidos y sin repetir) y asigna a los demás el menor número libre, por orden alfabético.
+export function resolveSlots(teams, roomOf, slotOf = {}) {
+  const out = {}
+  const byRoom = new Map()
+  teams.forEach((t) => {
+    const room = roomOf(t.id)
+    if (!byRoom.has(room)) byRoom.set(room, [])
+    byRoom.get(room).push(t)
+  })
+  for (const list of byRoom.values()) {
+    const used = new Set()
+    list.forEach((t) => {
+      const n = slotOf?.[t.id]
+      if (Number.isInteger(n) && n >= 1 && !used.has(n)) { out[t.id] = n; used.add(n) }
+    })
+    let next = 1
+    ;[...list].sort((a, b) => a.team_name.localeCompare(b.team_name)).forEach((t) => {
+      if (out[t.id]) return
+      while (used.has(next)) next++
+      out[t.id] = next
+      used.add(next)
+    })
+  }
+  return out
+}
+
+// Reparte `total` equipos en `rooms` salas lo más parejo posible: [12, 12], [9, 8, 8]…
+export const equalSizes = (total, rooms) => Array.from({ length: rooms }, (_, i) => Math.floor(total / rooms) + (i < total % rooms ? 1 : 0))
+
+// Reparte al azar los equipos en salas con los tamaños dados: { id: sala }.
+export function distributeBySizes(ids, sizes) {
+  const out = {}
+  const shuffled = shuffle(ids)
+  let at = 0
+  sizes.forEach((size, i) => { shuffled.slice(at, at + size).forEach((id) => { out[id] = i + 1 }); at += size })
+  return out
+}

@@ -6,6 +6,12 @@ import StagePreview from '../components/StagePreview'
 import MatchCard from '../components/MatchCard'
 import BracketView from '../components/BracketView'
 import LobbyModal from '../components/LobbyModal'
+import RoomsModal from '../components/RoomsModal'
+import PointsEditor from '../components/PointsEditor'
+import RoomSizesEditor from '../components/RoomSizesEditor'
+import PointsModal from '../components/PointsModal'
+import BrStageBody from '../components/BrStageBody'
+import { lobbyState } from '../lib/rooms'
 import { GAME_LABEL, dateTime, toLocalInput } from '../lib/format'
 import { generateStage } from '../lib/generateStage'
 import RoundFormat from '../components/RoundFormat'
@@ -17,7 +23,7 @@ import { battleRoyaleTotals } from '../lib/standings'
 import { useRoundBo } from '../lib/useRoundBo'
 import {
   DEFAULT_PLACEMENT_POINTS, draftBracket, groupStandings, isBye, isDead, maxQualify, settleBracket, numberMatches, pendingLabel,
-  previewStage, qualifyText, roomsNeeded, ROOM_SIZE, roundName, totalRounds,
+  brPoints, distributeBySizes, equalSizes, resolveSlots, previewStage, qualifyText, roomsNeeded, roundName, totalRounds,
 } from '../lib/bracket'
 
 const STAGE_TYPES = {
@@ -33,8 +39,10 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
   const types = TYPES_BY_GAME[gameKey]
   const [form, setForm] = useState({
     name: '', type: types[0], groups: 2, qualify_per_group: 2, best_of: 1, lobbies: 6,
-    placement_points: DEFAULT_PLACEMENT_POINTS.join(','), kill_points: 1, qualify_count: '', rooms: '',
+    placement: DEFAULT_PLACEMENT_POINTS.map(String), kill_points: '1', qualify_count: '',
   })
+  // Equipos de cada sala (se reparten al azar con estos tamaños); con más de 12 equipos hacen falta varias salas.
+  const [roomSizes, setRoomSizes] = useState(() => equalSizes(teams.length, roomsNeeded(teams.length)))
   const bracketRounds = form.type === 'single_elim' ? (previewStage('single_elim', teams.length, {}).rounds ?? 0) : 0
   const [roundBo, setRoundBo] = useRoundBo(bracketRounds)
   const [busy, setBusy] = useState(false)
@@ -51,12 +59,13 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
     if (form.type === 'groups') config = { ...config, qualify_per_group: Math.min(Number(form.qualify_per_group) || 1, maxQualify(ids.length, Number(form.groups))) }
     if (form.type === 'single_elim') config = { ...config, best_of_by_round: roundBo }
     if (form.type === 'battle_royale') {
-      const pts = form.placement_points.split(',').map((v) => Number(v.trim()))
-      if (pts.some((v) => !Number.isFinite(v) || v < 0)) return toast.error('Tabla de puntos inválida.')
-      config = { ...config, placement_points: pts, kill_points: Number(form.kill_points) || 0 }
-      // Con más de 12 equipos hacen falta varias salas (12 por sala como máximo).
-      const rooms = Math.max(Math.floor(Number(form.rooms)) || 1, roomsNeeded(ids.length))
-      if (rooms >= 2 && rooms <= 12) config.rooms = rooms
+      const pts = form.placement.map((v) => (v === '' ? NaN : Number(v)))
+      if (pts.some((v) => !Number.isFinite(v) || v < 0)) return toast.error('Revisa los puntos por puesto: cada casilla debe tener un número.')
+      if (!Number.isFinite(Number(form.kill_points)) || Number(form.kill_points) < 0) return toast.error('Puntos por kill inválidos.')
+      config = { ...config, placement_points: pts, kill_points: Number(form.kill_points) }
+      if (roomSizes.reduce((a, b) => a + b, 0) !== ids.length) return toast.error('Los equipos de las salas no suman el total de equipos.')
+      if (roomSizes.length > 1) { config.rooms = roomSizes.length; config.room_of = distributeBySizes(ids, roomSizes) }
+      config.slot_of = resolveSlots(teams, (id) => config.room_of?.[id] ?? 1, {})
       const q = Math.floor(Number(form.qualify_count))
       if (form.qualify_count !== '' && q >= 1) config.qualify_count = q
     }
@@ -116,27 +125,33 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
         {form.type === 'single_elim' && <RoundFormat values={roundBo} onChange={setRoundBo} />}
         {form.type === 'battle_royale' && (
           <>
-            <div className="form-row">
-              <label className="field"><span>N.º de partidas</span>
+            <section className="nf-section">
+              <h3>1 · Partidas</h3>
+              <label className="field" style={{ maxWidth: 220 }}><span>Cuántas partidas se juegan</span>
                 <input type="number" min="1" max="20" value={form.lobbies} onChange={(e) => set('lobbies', e.target.value)} />
               </label>
-              <label className="field"><span>Puntos por kill</span>
-                <input type="number" min="0" step="0.5" value={form.kill_points} onChange={(e) => set('kill_points', e.target.value)} />
+            </section>
+            <section className="nf-section">
+              <h3>2 · Salas y equipos por sala</h3>
+              <RoomSizesEditor total={teams.length} sizes={roomSizes} onChange={setRoomSizes} />
+            </section>
+            <section className="nf-section">
+              <h3>3 · Puntos</h3>
+              <PointsEditor placement={form.placement} kill={form.kill_points}
+                onPlacement={(i, v) => set('placement', form.placement.map((x, k) => (k === i ? v : x)))}
+                onKill={(v) => set('kill_points', v)}
+                onReset={() => setForm((f) => ({ ...f, placement: DEFAULT_PLACEMENT_POINTS.map(String), kill_points: '1' }))} />
+            </section>
+            <section className="nf-section">
+              <h3>4 · Clasificación (opcional)</h3>
+              <label className="field" style={{ maxWidth: 260 }}><span>{roomSizes.length > 1 ? 'Pasan por sala' : 'Pasan a la siguiente fase'}</span>
+                <input type="number" min="1" max={Math.min(...roomSizes)} placeholder="Ej.: 6" value={form.qualify_count} onChange={(e) => set('qualify_count', e.target.value)} />
               </label>
-            </div>
-            <label className="field"><span>Puntos por puesto (1°, 2°, 3°… separados por coma)</span>
-              <input value={form.placement_points} onChange={(e) => set('placement_points', e.target.value)} />
-            </label>
-            <label className="field"><span>Salas por partida</span>
-              <input type="number" min={roomsNeeded(teams.length)} max="12" placeholder={String(roomsNeeded(teams.length))} value={form.rooms} onChange={(e) => set('rooms', e.target.value)} />
-              {teams.length > ROOM_SIZE && <small className="hint">{teams.length} equipos: mínimo {roomsNeeded(teams.length)} salas ({ROOM_SIZE} por sala).</small>}
-            </label>
-            <label className="field"><span>Pasan a la siguiente fase (opcional)</span>
-              <input type="number" min="1" max={teams.length} placeholder="Ej.: 12" value={form.qualify_count} onChange={(e) => set('qualify_count', e.target.value)} />
-            </label>
+              {Number(form.qualify_count) >= 1 && <p className="hint">Pasarán <b>{roomSizes.reduce((sum, size) => sum + Math.min(size, Number(form.qualify_count)), 0)}</b> equipos en total.</p>}
+            </section>
           </>
         )}
-        <StagePreview type={form.type} total={teams.length} config={{ ...form, qualify_per_group: Math.min(form.qualify_per_group, maxQualify(teams.length, form.groups)) }} roundBo={roundBo} />
+        <StagePreview type={form.type} total={teams.length} config={{ ...form, qualify_per_group: Math.min(form.qualify_per_group, maxQualify(teams.length, form.groups)) }} roundBo={roundBo} roomSizes={roomSizes} />
         <button className="btn btn--primary" disabled={busy} type="submit">{busy ? 'Generando…' : 'Generar fase'}</button>
       </form>
     </Modal>
@@ -186,24 +201,25 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [openMatch, setOpenMatch] = useState(null)
+  const [openRoom, setOpenRoom] = useState(1)
   const [schedulingMatch, setSchedulingMatch] = useState(null)
   const [busyMatch, setBusyMatch] = useState(null)
   const [drawing, setDrawing] = useState(false)
   const [continuing, setContinuing] = useState(false)
   const [continuingBr, setContinuingBr] = useState(false)
   const [choosingChampion, setChoosingChampion] = useState(false)
+  const [editingRooms, setEditingRooms] = useState(false)
+  const [editingPoints, setEditingPoints] = useState(false)
   const [draft, setDraft] = useState(null) // lugares de la ronda 1 mientras se editan los emparejamientos
   const [selSlot, setSelSlot] = useState(null)
 
   const load = useCallback(async () => {
-    const [m, g, gt, mr, lr] = await Promise.all([
+    const [m, g, gt, mr] = await Promise.all([
       supabase.from('matches').select('*').eq('stage_id', stage.id).order('round').order('position'),
       supabase.from('groups').select('*').eq('stage_id', stage.id).order('name'),
       supabase.from('group_teams').select('group_id, registration_id'),
       supabase.from('match_results').select('*'),
-      supabase.from('lobby_rooms').select('*'),
     ])
-    // lobby_rooms solo existe tras ejecutar el SQL con salas; si falta, se trabaja con 1 sala.
     const err = m.error || g.error || gt.error || mr.error
     if (err) return setError(err.message)
     const matchIds = new Set(m.data.map((x) => x.id))
@@ -212,7 +228,6 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
       matches: m.data, groups: g.data,
       groupTeams: gt.data.filter((x) => groupIds.has(x.group_id)),
       results: mr.data.filter((x) => matchIds.has(x.match_id)),
-      rooms: lr.error ? [] : lr.data.filter((x) => matchIds.has(x.match_id)),
     })
   }, [stage.id])
   useEffect(() => { load() }, [load])
@@ -322,7 +337,7 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
   const addLobby = async () => {
     setBusyMatch('lobby')
     const next = Math.max(0, ...data.matches.map((m) => m.round)) + 1
-    const { error: err } = await supabase.from('matches').insert({ stage_id: stage.id, round: next, position: 0, ...(Math.max(Number(stage.config?.rooms) || 1, roomsNeeded(allTeams.length)) > 1 ? { rooms: Math.max(Number(stage.config?.rooms) || 1, roomsNeeded(allTeams.length)) } : {}) })
+    const { error: err } = await supabase.from('matches').insert({ stage_id: stage.id, round: next, position: 0 })
     setBusyMatch(null)
     if (err) return toast.error(err.message)
     toast.success(`Partida ${next} agregada.`)
@@ -354,6 +369,53 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
     toast.success(id ? 'Campeón registrado.' : 'Campeón quitado.')
     setChoosingChampion(false)
     onChanged()
+  }
+  // Cambia los puntos de la fase y recalcula los resultados ya cargados.
+  const savePoints = async (placement, kill) => {
+    setBusyMatch('points')
+    const config = { ...stage.config, placement_points: placement, kill_points: kill }
+    const up = await supabase.from('stages').update({ config }).eq('id', stage.id)
+    let failure = up.error
+    if (!failure && data.results.length) {
+      const rows = data.results.map((x) => ({
+        match_id: x.match_id, registration_id: x.registration_id, placement: x.placement, kills: x.kills, points: brPoints(x.placement, x.kills, config),
+      }))
+      failure = (await supabase.from('match_results').upsert(rows, { onConflict: 'match_id,registration_id' })).error
+    }
+    setBusyMatch(null)
+    if (failure) return toast.error(failure.message)
+    toast.success('Puntos actualizados.')
+    setEditingPoints(false)
+    refresh()
+  }
+  // Guarda las salas de la fase (cuántas y en cuál juega cada equipo).
+  const saveRooms = async (rooms, roomOf, slotOf) => {
+    setBusyMatch('rooms')
+    const config = { ...stage.config }
+    if (rooms > 1) { config.rooms = rooms; config.room_of = roomOf } else { delete config.rooms; delete config.room_of }
+    config.slot_of = slotOf
+    const { error: err } = await supabase.from('stages').update({ config }).eq('id', stage.id)
+    setBusyMatch(null)
+    if (err) return toast.error(err.message)
+    toast.success('Salas guardadas.')
+    setEditingRooms(false)
+    onChanged()
+  }
+  // Marca (o reabre) una sala como terminada a mano; la partida pasa a "terminada" cuando todas sus salas lo están.
+  const setRoomFinished = async (match, room, finished) => {
+    const marked = new Set(stage.config?.finished?.[match.id] ?? [])
+    if (finished) marked.add(room)
+    else marked.delete(room)
+    const config = { ...stage.config, finished: { ...(stage.config?.finished ?? {}), [match.id]: [...marked] } }
+    const { error: err } = await supabase.from('stages').update({ config }).eq('id', stage.id)
+    if (err) return toast.error(err.message)
+    const done = lobbyState({ ...stage, config }, match.id, data.results, allTeams) === 'done'
+    if (done !== (match.status === 'completed')) {
+      const r = await supabase.from('matches').update({ status: done ? 'completed' : 'scheduled' }).eq('id', match.id)
+      if (r.error) return toast.error(r.error.message)
+    }
+    toast.success(finished ? 'Sala marcada como terminada.' : 'Sala reabierta.')
+    refresh()
   }
   // Cuántos equipos pasan a la siguiente fase (se resalta en la tabla).
   const setQualifyCount = async (value) => {
@@ -498,49 +560,10 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
         ) : cardFor(match, `M${numbers.get(match.id)}`))} />
     )
   } else {
-    const totals = battleRoyaleTotals(allTeams, results)
-    const qualifyCount = Number(stage.config?.qualify_count) || 0
-    const champion = stage.config?.champion
-    const topOf = (matchId) => {
-      const first = results.find((r) => r.match_id === matchId && r.placement === 1)
-      return first ? teamName(first.registration_id) : null
-    }
     body = (
-      <div className="br-layout">
-        <div className="card br-lobbies">
-          <h2>Partidas <button className="btn btn--sm" type="button" disabled={busyMatch === 'lobby'} onClick={addLobby} style={{ marginLeft: 'auto' }}>+ Agregar</button></h2>
-          <div className="lobby-list">
-            {matches.map((m) => (
-              <div className={`lobby-row ${m.status === 'completed' ? 'lobby-row--done' : ''}`} key={m.id}>
-                <button type="button" className="lobby-open" onClick={() => setOpenMatch(m)} title="Cargar o editar el resultado">
-                  <b>P{m.round}</b>
-                  <span>{m.rooms > 1 ? `${m.rooms} salas · ` : ''}{m.status === 'completed' ? (m.rooms <= 1 && topOf(m.id) ? `Booyah · ${topOf(m.id)}` : 'Jugada') : 'Pendiente'}</span>
-                </button>
-                {m.status !== 'completed' && (
-                  <button type="button" className="lobby-del" aria-label={`Eliminar partida ${m.round}`} title="Eliminar (solo pendientes)" disabled={busyMatch === 'lobby'} onClick={() => deleteLobby(m)}>×</button>
-                )}
-              </div>
-            ))}
-            {matches.length === 0 && <p className="hint">Sin partidas. Agrega la primera.</p>}
-          </div>
-        </div>
-        <div className="card"><h2>Tabla general
-          <label className="qualify-field">Pasan a la siguiente fase
-            <input type="number" min="0" max={totals.length || undefined} placeholder="—" defaultValue={qualifyCount || ''} key={qualifyCount}
-              onBlur={(e) => { if (Number(e.target.value || 0) !== qualifyCount) setQualifyCount(e.target.value) }} />
-          </label>
-        </h2>
-          <div className="table-wrap"><table>
-            <thead><tr><th>#</th><th>Equipo</th><th className="num">PJ</th><th className="num" title="Booyahs">Booyah</th><th className="num">Kills</th><th className="num">Pts</th></tr></thead>
-            <tbody>{totals.map((r, i) => (
-              <tr key={r.id} className={r.id === champion ? 'row--champion' : qualifyCount && i < qualifyCount ? 'row--qualify' : undefined}>
-                <td>{i + 1}</td><td>{teamName(r.id)}{r.id === champion && <span className="badge badge--phase-champion" style={{ marginLeft: 8 }}>Campeón</span>}</td><td className="num">{r.played}</td><td className="num">{r.wins}</td><td className="num">{r.kills}</td><td className="num"><strong>{r.points}</strong></td>
-              </tr>
-            ))}</tbody>
-          </table></div>
-          {qualifyCount > 0 && <p className="hint" style={{ marginTop: 8 }}>Pasan los {qualifyCount} primeros (en verde). Desempate: Booyahs y luego kills.</p>}
-        </div>
-      </div>
+      <BrStageBody stage={stage} matches={matches} results={results} teams={allTeams} teamName={teamName} busy={busyMatch === 'lobby'}
+        onAddLobby={addLobby} onDeleteLobby={deleteLobby} onSetQualify={setQualifyCount} onSetRoomFinished={setRoomFinished}
+        onOpenLobby={(m, room) => { setOpenRoom(room); setOpenMatch(m) }} />
     )
   }
 
@@ -557,12 +580,14 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
           )}
           {stage.type === 'battle_royale' && (
             <>
-              <button className="btn btn--ok" onClick={() => setChoosingChampion(true)} type="button">{stage.config?.champion ? 'Cambiar campeón' : 'Seleccionar campeón'}</button>
-              <button className="btn btn--primary" onClick={() => setContinuingBr(true)} type="button">Continuar fase</button>
+              <button className="btn" onClick={() => setEditingPoints(true)} type="button">Puntos</button>
+              <button className="btn" onClick={() => setEditingRooms(true)} type="button">Salas ({Number(stage.config?.rooms) || 1})</button>
+              <button className="btn btn--gold" onClick={() => setChoosingChampion(true)} type="button">{stage.config?.champion ? 'Cambiar campeón' : 'Seleccionar campeón'}</button>
+              <button className="btn btn--cta" onClick={() => setContinuingBr(true)} type="button">Continuar fase <span aria-hidden="true">→</span></button>
             </>
           )}
           {stage.type === 'groups' && (
-            <button className="btn btn--primary" onClick={() => setContinuing(true)} type="button">Continuar fase</button>
+            <button className="btn btn--cta" onClick={() => setContinuing(true)} type="button">Continuar fase <span aria-hidden="true">→</span></button>
           )}
           {stage.type !== 'battle_royale' && !stage.config?.source_stage && (
             <button className="btn" onClick={redraw} disabled={drawing} type="button">{drawing ? 'Sorteando…' : 'Sortear de nuevo'}</button>
@@ -587,6 +612,13 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
         </div>
       )}
       {body}
+      {editingPoints && (
+        <PointsModal stage={stage} hasResults={results.length > 0} busy={busyMatch === 'points'} onClose={() => setEditingPoints(false)} onSave={savePoints} />
+      )}
+      {editingRooms && (
+        <RoomsModal teams={allTeams} rooms={Number(stage.config?.rooms) || 1} roomOf={stage.config?.room_of} hasResults={results.length > 0} slotOf={stage.config?.slot_of}
+          busy={busyMatch === 'rooms'} onClose={() => setEditingRooms(false)} onSave={saveRooms} />
+      )}
       {choosingChampion && (
         <ChampionModal totals={battleRoyaleTotals(allTeams, results)} teamName={teamName} current={stage.config?.champion}
           pending={matches.filter((m) => m.status !== 'completed').length} busy={busyMatch === 'champion'}
@@ -605,7 +637,7 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
         <ScheduleModal match={schedulingMatch} title={`Horario · ${teamName(schedulingMatch.team_a)} vs ${teamName(schedulingMatch.team_b)}`} onClose={() => setSchedulingMatch(null)} onSaved={refresh} />
       )}
       {openMatch && stage.type === 'battle_royale' && (
-        <LobbyModal match={openMatch} stage={stage} teams={allTeams} results={results} assignments={data.rooms.filter((x) => x.match_id === openMatch.id)} onClose={() => setOpenMatch(null)} onSaved={refresh} />
+        <LobbyModal match={openMatch} stage={stage} teams={allTeams} results={results} initialRoom={openRoom} onClose={() => setOpenMatch(null)} onSaved={refresh} />
       )}
       {stage.type !== 'battle_royale' && matches.some((m) => m.scheduled_at) && (
         <p className="hint">Próximo horario cargado: {dateTime(matches.filter((m) => m.scheduled_at && m.status !== 'completed').map((m) => m.scheduled_at).sort()[0])}</p>
@@ -644,7 +676,7 @@ export default function Format() {
   return (
     <>
       <PageHeader eyebrow="Torneo" title="Grupos y llaves" subtitle="Genera grupos y llaves con los equipos aprobados, carga resultados y publícalos en el sitio."
-        actions={<button className="btn btn--primary" onClick={() => setCreating(true)} type="button">+ Nueva fase</button>} />
+        actions={<button className="btn btn--outline" onClick={() => setCreating(true)} type="button">+ Nueva fase</button>} />
       <div className="tabs">
         {['mlbb', 'ff'].map((g) => (
           <button key={g} type="button" className={`tab ${game === g ? 'tab--active' : ''}`} onClick={() => { setGame(g); setActiveId(null) }}>{GAME_LABEL[g]}</button>

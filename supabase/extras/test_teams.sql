@@ -1,14 +1,19 @@
 -- =====================================================================
--- DATOS DE PRUEBA: 16 equipos MLBB + 12 equipos Free Fire con rosters completos.
+-- DATOS DE PRUEBA (un solo script): 16 equipos MLBB + 24 equipos Free Fire, con rosters completos.
 -- Ejecutar en el SQL Editor de Supabase (corre como postgres, salta RLS).
 --
--- * Mezcla de estados: aprobados, pendientes y rechazados.
+-- * MLBB: mezcla de estados (aprobados, pendientes y rechazados).
+-- * Free Fire: los 24 APROBADOS (= su cupo), para probar salas: 24 equipos = 2 salas de 12
+--   (máximo 12 equipos por sala), fases, clasificados y campeón.
 -- * Todos usan receipt_path 'test-...' => sirven para borrarlos de una vez
 --   con test_teams_cleanup.sql. No tienen archivo real en Storage, así que
 --   al abrir el comprobante en el panel verás un aviso de "Object not found".
--- * Es seguro repetirlo: no duplica equipos ya cargados.
+-- * Es seguro repetirlo: primero borra los equipos de prueba anteriores y los vuelve a crear.
 -- Requisitos: haber ejecutado 01_schema.sql y 02_seed.sql.
 -- =====================================================================
+
+-- Reemplaza cualquier dato de prueba anterior (también los jugadores, grupos y partidas asociados).
+delete from public.registrations where receipt_path like 'test-%';
 
 do $$
 declare
@@ -21,7 +26,10 @@ declare
   ff_names text[] := array[
     'Booyah Puno', 'Fénix del Sur', 'Jaguar Squad', 'Chasqui Gaming',
     'Vicuña Elite', 'Tormenta Andina', 'Mallku Pro', 'Pachamama FF',
-    'Yaku Raiders', 'Sol Naciente', 'Apu Legends', 'Nevado Crew'
+    'Yaku Raiders', 'Sol Naciente', 'Apu Legends', 'Nevado Crew',
+    'Lobos del Altiplano', 'Quinua Gaming', 'Amaru Clan', 'Totora Squad',
+    'Wayra Esports', 'Kori Warriors', 'Sumaq Team', 'Pukara FF',
+    'Anka Elite', 'Intiwasi Crew', 'Llama Dorada', 'Ayni Gaming'
   ];
   schools text[] := array[
     'Ingeniería de Sistemas', 'Ingeniería Civil', 'Medicina Humana', 'Derecho',
@@ -57,8 +65,9 @@ begin
     end if;
 
     for v_i in 1 .. v_count loop
-      -- ~70% aprobados, ~25% pendientes, ~5% rechazados
+      -- MLBB: ~70% aprobados, ~25% pendientes, ~5% rechazados. Free Fire: todos aprobados.
       v_status := case
+        when v_game = 'ff' then 'approved'
         when v_i % 10 = 0 then 'rejected'
         when v_i % 4 = 0 then 'pending'
         else 'approved'

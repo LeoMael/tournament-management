@@ -12,12 +12,12 @@ function Tile({ label, value }) {
   )
 }
 
-function Groups({ sizes, qualify }) {
+function Groups({ sizes, qualify, label = 'Grupo' }) {
   return (
     <div className="pv-groups">
       {sizes.map((size, i) => (
         <div className="pv-group" key={i}>
-          <header><b>Grupo {String.fromCharCode(65 + i)}</b><span>{plural(size, 'equipo', 'equipos')}</span></header>
+          <header><b>{label} {label === 'Sala' ? i + 1 : String.fromCharCode(65 + i)}</b><span>{plural(size, 'equipo', 'equipos')}</span></header>
           <div className="pv-slots" aria-hidden="true">{Array.from({ length: size }, (_, k) => <i key={k} className={k < qualify ? 'pv-slot--q' : 'pv-slot--out'} />)}</div>
         </div>
       ))}
@@ -45,7 +45,7 @@ function PreviewBracket({ p, roundBo }) {
 }
 
 // Resumen visual de lo que se va a generar: cifras clave + un esquema (grupos, llave o salas).
-export default function StagePreview({ type, total, config, roundBo, names = null }) {
+export default function StagePreview({ type, total, config, roundBo, names = null, roomSizes = null }) {
   const p = previewStage(type, total, config, names)
   let tiles
   let caption
@@ -58,16 +58,19 @@ export default function StagePreview({ type, total, config, roundBo, names = nul
     else if (p.byes) caption = `${plural(p.byes, 'equipo pasa', 'equipos pasan')} directo a la 2.ª ronda (Bye). Cada línea une un cruce con el siguiente.`
     else caption = 'Cada línea une un cruce con el siguiente.'
   } else {
-    tiles = [['Equipos', total], ['Salas', p.lobbies || '—']]
-    caption = p.valid ? 'Todos los equipos juegan todas las salas.' : total < 2 ? 'Necesitas al menos 2 equipos aprobados.' : 'Cantidad de partidas inválida (1–20).'
+    tiles = [['Equipos', total], ['Salas', roomSizes?.length ?? 1], ['Partidas', p.lobbies || '—']]
+    caption = p.valid ? (roomSizes?.length > 1 ? 'Cada sala juega por separado y tiene su propia tabla.' : 'Todos los equipos juegan todas las partidas.') : total < 2 ? 'Necesitas al menos 2 equipos aprobados.' : 'Cantidad de partidas inválida (1–20).'
   }
   return (
     <section className={`pv ${p.valid ? '' : 'pv--invalid'}`} aria-label="Vista previa de la fase" aria-live="polite">
       <div className="pv-tiles">{tiles.map(([label, value]) => <Tile key={label} label={label} value={value} />)}</div>
       {p.valid && p.kind === 'groups' && <Groups sizes={p.sizes} qualify={p.qualify} />}
       {p.valid && p.kind === 'single_elim' && <PreviewBracket p={p} roundBo={roundBo} />}
+      {p.valid && p.kind === 'battle_royale' && roomSizes?.length > 1 && (
+        <Groups sizes={roomSizes} qualify={Number(config.qualify_count) || 0} label="Sala" />
+      )}
       {p.valid && p.kind === 'battle_royale' && (
-        <div className="pv-lobbies" aria-hidden="true">{Array.from({ length: p.lobbies }, (_, i) => <span key={i}>{i + 1}</span>)}</div>
+        <div className="pv-lobbies" aria-hidden="true">{Array.from({ length: p.lobbies }, (_, i) => <span key={i} title={`Partida ${i + 1}`}>P{i + 1}</span>)}</div>
       )}
       {caption && <p className={`pv-caption ${p.valid ? '' : 'pv-caption--warn'}`}>{caption}</p>}
     </section>
