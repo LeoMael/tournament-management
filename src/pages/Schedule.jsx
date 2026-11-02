@@ -1,29 +1,56 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useToast } from '../context/ToastContext'
-import { ErrorBox, PageHeader, Spinner } from '../components/ui'
+import { ErrorBox, Modal, PageHeader, Spinner } from '../components/ui'
 import QuickAssignModal from '../components/QuickAssignModal'
 import EventModal from '../components/EventModal'
-import { GAME_LABEL, dateTime, toLocalInput } from '../lib/format'
+import ScheduleAgenda from '../components/ScheduleAgenda'
+import { GAME_LABEL, toLocalInput } from '../lib/format'
 import { isBye, isDead, numberMatches, pendingLabel } from '../lib/bracket'
+import { groupByDay } from '../lib/schedule'
 
 const TYPE_LABEL = { groups: 'Fase de grupos', single_elim: 'Eliminación directa', battle_royale: 'Battle Royale' }
+
+// Cambiar o quitar la hora de un partido.
+function TimeModal({ match, onClose, onSaved }) {
+  const toast = useToast()
+  const [value, setValue] = useState(match.scheduled_at ? toLocalInput(match.scheduled_at) : '')
+  const [busy, setBusy] = useState(false)
+  const save = async (next) => {
+    setBusy(true)
+    const { error } = await supabase.from('matches').update({ scheduled_at: next ? new Date(next).toISOString() : null }).eq('id', match.id)
+    setBusy(false)
+    if (error) return toast.error(error.message)
+    toast.success(next ? 'Horario guardado.' : 'Horario quitado.')
+    onSaved()
+    onClose()
+  }
+  return (
+    <Modal title={match.title} onClose={onClose}>
+      <p className="hint">{match.sub}</p>
+      <label className="field"><span>Fecha y hora</span><input type="datetime-local" value={value} onChange={(e) => setValue(e.target.value)} autoFocus /></label>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button className="btn btn--primary" type="button" disabled={busy || !value} onClick={() => save(value)}>Guardar</button>
+        {match.scheduled_at && <button className="btn btn--ghost" type="button" disabled={busy} onClick={() => save(null)}>Quitar hora</button>}
+      </div>
+    </Modal>
+  )
+}
 
 export default function Schedule() {
   const toast = useToast()
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
-  const [game, setGame] = useState('mlbb')
+  const [game, setGame] = useState('all')
   const [stageId, setStageId] = useState(null)
-  const [edits, setEdits] = useState({}) // id de partido -> valor de datetime-local ('' = quitar la hora)
   const [assigning, setAssigning] = useState(false)
+  const [timeFor, setTimeFor] = useState(null)
   const [eventModal, setEventModal] = useState(null) // { event } (null = nuevo)
-  const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
     const [stages, matches, regs, groups, events] = await Promise.all([
-      supabase.from('stages').select('id, game_key, name, type, position, created_at').order('position'),
-      supabase.from('matches').select('id, stage_id, group_id, round, position, team_a, team_b, status, winner_id, best_of, scheduled_at, score_a'),
+      supabase.from('stages').select('id, game_key, name, type, position').order('position'),
+      supabase.from('matches').select('id, stage_id, group_id, round, position, team_a, team_b, status, winner_id, best_of, scheduled_at'),
       supabase.from('registrations').select('id, team_name'),
       supabase.from('groups').select('id, name'),
       supabase.from('schedule_events').select('*').order('starts_at'),
@@ -39,37 +66,49 @@ export default function Schedule() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const gameStages = useMemo(() => (data?.stages ?? []).filter((s) => s.game_key === game), [data, game])
-  const stage = gameStages.find((s) => s.id === stageId) ?? gameStages.at(-1) ?? null
-
-  // Partidos de la fase que se pueden programar (sin byes ni cruces vacíos), con su etiqueta.
+  // Todos los partidos programables (sin byes ni cruces vacíos) de todas las fases, con su etiqueta.
   const rows = useMemo(() => {
-    if (!data || !stage) return []
-    const all = data.matches.filter((m) => m.stage_id === stage.id)
-    const numbers = numberMatches(all)
-    const name = (id, m, side) => (id ? data.names.get(id) ?? '—' : pendingLabel(m, side, all, numbers))
-    return all.filter((m) => !isBye(m) && !isDead(m)).sort((a, b) => a.round - b.round || a.position - b.position).map((m) => {
-      let label
-      let sub = ''
-      if (stage.type === 'battle_royale') label = `Partida ${m.round}`
-      else if (stage.type === 'groups') { label = `${name(m.team_a, m, 'a')} vs ${name(m.team_b, m, 'b')}`; sub = `${data.groups.get(m.group_id) ?? 'Grupo'} · Ronda ${m.round}` }
-      else { label = `${name(m.team_a, m, 'a')} vs ${name(m.team_b, m, 'b')}`; sub = `M${numbers.get(m.id)} · BO${m.best_of}` }
-      return { ...m, label, sub, done: m.status === 'completed' }
+    if (!data) return []
+    return data.stages.flatMap((stage) => {
+      const all = data.matches.filter((m) => m.stage_id === stage.id)
+      const numbers = numberMatches(all)
+      const name = (id, m, side) => (id ? data.names.get(id) ?? '—' : pendingLabel(m, side, all, numbers))
+      return all.filter((m) => !isBye(m) && !isDead(m)).sort((a, b) => a.round - b.round || a.position - b.position).map((m) => {
+        let title
+        let detail = ''
+        if (stage.type === 'battle_royale') title = `Partida ${m.round}`
+        else {
+          title = `${name(m.team_a, m, 'a')} vs ${name(m.team_b, m, 'b')}`
+          detail = stage.type === 'groups' ? `${data.groups.get(m.group_id) ?? 'Grupo'} · Ronda ${m.round}` : `M${numbers.get(m.id)} · BO${m.best_of}`
+        }
+        return { ...m, kind: 'match', game: stage.game_key, title, stage: stage.name, stageId: stage.id, sub: `${stage.name}${detail ? ` · ${detail}` : ''}`, done: m.status === 'completed' }
+      })
     })
-  }, [data, stage])
+  }, [data])
 
-  const valueOf = (m) => (m.id in edits ? edits[m.id] : m.scheduled_at ? toLocalInput(m.scheduled_at) : '')
-  const dirty = rows.filter((m) => m.id in edits && edits[m.id] !== (m.scheduled_at ? toLocalInput(m.scheduled_at) : ''))
+  const inGame = (g) => game === 'all' || !g || g === game
+  const scheduled = rows.filter((m) => m.scheduled_at && inGame(m.game))
+  const agendaItems = [
+    ...scheduled.map((m) => ({ ...m, id: m.id, at: m.scheduled_at })),
+    ...(data?.events ?? []).filter((e) => inGame(e.game_key)).map((e) => ({ kind: 'event', id: e.id, at: e.starts_at, end: e.ends_at, game: e.game_key, title: e.title, sub: e.note, raw: e })),
+  ]
+  const days = useMemo(() => groupByDay(agendaItems), [data, game]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const save = async () => {
-    setBusy(true)
-    const results = await Promise.all(dirty.map((m) => supabase.from('matches')
-      .update({ scheduled_at: edits[m.id] ? new Date(edits[m.id]).toISOString() : null }).eq('id', m.id)))
-    setBusy(false)
+  // Fases con partidos por programar (pendientes y sin hora), según el filtro de juego.
+  const pendingByStage = useMemo(() => {
+    const map = new Map()
+    rows.filter((m) => !m.scheduled_at && !m.done && inGame(m.game)).forEach((m) => map.set(m.stageId, [...(map.get(m.stageId) ?? []), m]))
+    return map
+  }, [rows, game]) // eslint-disable-line react-hooks/exhaustive-deps
+  const stagesWithPending = (data?.stages ?? []).filter((s) => pendingByStage.has(s.id))
+  const stage = stagesWithPending.find((s) => s.id === stageId) ?? stagesWithPending[0] ?? null
+  const pending = stage ? pendingByStage.get(stage.id) : []
+
+  const applyAuto = async (map) => {
+    const results = await Promise.all(Object.entries(map).map(([id, local]) => supabase.from('matches').update({ scheduled_at: new Date(local).toISOString() }).eq('id', id)))
     const failed = results.find((r) => r.error)
     if (failed) return toast.error(failed.error.message)
-    toast.success(`${dirty.length} ${dirty.length === 1 ? 'horario guardado' : 'horarios guardados'}.`)
-    setEdits({})
+    toast.success(`${results.length} horarios guardados.`)
     load()
   }
 
@@ -83,76 +122,59 @@ export default function Schedule() {
 
   if (error) return <ErrorBox error={error} />
   if (!data) return <Spinner />
-  const quickItems = rows.filter((m) => !m.done).map((m) => ({ id: m.id, label: m.label, round: m.round, position: m.position, hasTime: Boolean(valueOf(m)) }))
+  const totalPending = [...pendingByStage.values()].reduce((sum, list) => sum + list.length, 0)
   return (
     <>
-      <PageHeader eyebrow="Torneo" title="Cronograma" subtitle="Pon la hora de cada partido y agrega eventos. Lo que guardes aquí se ve en la página Cronograma del sitio."
-        actions={<button className="btn btn--primary" type="button" disabled={quickItems.length === 0} onClick={() => setAssigning(true)}>Asignación rápida</button>} />
+      <PageHeader eyebrow="Torneo" title="Cronograma" subtitle="El horario del torneo como agenda. Lo que programes aquí se ve en la página Cronograma del sitio."
+        actions={<button className="btn" type="button" onClick={() => setEventModal({ event: null })}>+ Agregar evento</button>} />
 
       <div className="filter-bar">
         <div className="seg" role="group" aria-label="Juego">
-          {['mlbb', 'ff'].map((key) => (
-            <button key={key} type="button" className={`seg-btn ${game === key ? 'seg-btn--on' : ''}`} aria-pressed={game === key} onClick={() => { setGame(key); setStageId(null); setEdits({}) }}>{GAME_LABEL[key]}</button>
+          {[['all', 'Todos'], ['mlbb', GAME_LABEL.mlbb], ['ff', GAME_LABEL.ff]].map(([key, label]) => (
+            <button key={key} type="button" className={`seg-btn ${game === key ? 'seg-btn--on' : ''}`} aria-pressed={game === key} onClick={() => { setGame(key); setStageId(null) }}>{label}</button>
           ))}
         </div>
-        {gameStages.length > 0 && (
-          <select aria-label="Fase" value={stage?.id ?? ''} onChange={(e) => { setStageId(e.target.value); setEdits({}) }} style={{ height: 38, borderRadius: 10 }}>
-            {gameStages.map((s) => <option key={s.id} value={s.id}>{s.name} · {TYPE_LABEL[s.type]}</option>)}
-          </select>
-        )}
+        <span className="hint">{scheduled.length} programados · {totalPending} por programar</span>
       </div>
 
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h2>Partidos{stage ? ` · ${stage.name}` : ''}
-          {dirty.length > 0 && <button className="btn btn--primary btn--sm" type="button" disabled={busy} onClick={save} style={{ marginLeft: 'auto' }}>{busy ? 'Guardando…' : `Guardar ${dirty.length} ${dirty.length === 1 ? 'cambio' : 'cambios'}`}</button>}
-        </h2>
-        {rows.length === 0 ? <p className="empty">{stage ? 'Esta fase no tiene partidos por programar.' : 'Aún no hay fases para este juego.'}</p> : (
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Partido</th><th>Estado</th><th>Fecha y hora</th><th /></tr></thead>
-              <tbody>
-                {rows.map((m) => (
-                  <tr key={m.id} className={m.done ? 'row--waiting' : undefined}>
-                    <td><b>{m.label}</b>{m.sub && <small style={{ display: 'block', color: 'var(--muted)' }}>{m.sub}</small>}</td>
-                    <td>{m.done ? 'Terminado' : 'Pendiente'}</td>
-                    <td><input type="datetime-local" value={valueOf(m)} disabled={m.done} aria-label={`Hora de ${m.label}`}
-                      onChange={(e) => setEdits((prev) => ({ ...prev, [m.id]: e.target.value }))} /></td>
-                    <td>{valueOf(m) && !m.done && <button type="button" className="btn btn--sm btn--ghost" onClick={() => setEdits((prev) => ({ ...prev, [m.id]: '' }))}>Quitar hora</button>}</td>
-                  </tr>
+      {data.eventsMissing && <p className="pv-caption pv-caption--warn" style={{ marginBottom: 12 }}>Falta ejecutar 01_schema.sql actualizado en Supabase para poder guardar eventos.</p>}
+
+      <div className="sch-layout">
+        <div>
+          <ScheduleAgenda days={days} onPick={(item) => (item.kind === 'event' ? setEventModal({ event: item.raw }) : setTimeFor(item))} />
+        </div>
+
+        <aside className="card sch-pending">
+          <h2>Por programar</h2>
+          {stagesWithPending.length === 0 ? <p className="empty">Todos los partidos pendientes ya tienen hora.</p> : (
+            <>
+              <select aria-label="Fase" value={stage?.id ?? ''} onChange={(e) => setStageId(e.target.value)}>
+                {stagesWithPending.map((s) => <option key={s.id} value={s.id}>{GAME_LABEL[s.game_key]} · {s.name} ({pendingByStage.get(s.id).length})</option>)}
+              </select>
+              <p className="hint">{TYPE_LABEL[stage.type]}</p>
+              <button className="btn btn--primary" type="button" onClick={() => setAssigning(true)}>Asignación rápida</button>
+              <ul className="sch-list">
+                {pending.map((m) => (
+                  <li key={m.id}>
+                    <span><b>{m.title}</b><small>{m.sub.replace(`${m.stage} · `, '')}</small></span>
+                    <button type="button" className="btn btn--sm" onClick={() => setTimeFor(m)}>Hora</button>
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </ul>
+            </>
+          )}
+        </aside>
       </div>
 
-      <div className="card">
-        <h2>Eventos <button className="btn btn--sm" type="button" onClick={() => setEventModal({ event: null })} style={{ marginLeft: 'auto' }}>+ Agregar evento</button></h2>
-        {data.eventsMissing && <p className="pv-caption pv-caption--warn">Falta ejecutar 01_schema.sql actualizado en Supabase para poder guardar eventos.</p>}
-        {data.events.length === 0 ? <p className="empty">Sin eventos. Agrega la inauguración, los descansos o la premiación.</p> : (
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Evento</th><th>Juego</th><th>Inicio</th><th>Fin</th><th /></tr></thead>
-              <tbody>
-                {data.events.map((ev) => (
-                  <tr key={ev.id}>
-                    <td><b>{ev.title}</b>{ev.note && <small style={{ display: 'block', color: 'var(--muted)' }}>{ev.note}</small>}</td>
-                    <td>{ev.game_key ? GAME_LABEL[ev.game_key] : 'Ambos'}</td>
-                    <td>{dateTime(ev.starts_at)}</td><td>{ev.ends_at ? dateTime(ev.ends_at) : '—'}</td>
-                    <td><div className="row-actions row-actions--end">
-                      <button type="button" className="btn btn--sm" onClick={() => setEventModal({ event: ev })}>Editar</button>
-                      <button type="button" className="btn btn--sm btn--bad" onClick={() => removeEvent(ev)}>Eliminar</button>
-                    </div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {assigning && <QuickAssignModal items={quickItems} onClose={() => setAssigning(false)} onApply={(map) => setEdits((prev) => ({ ...prev, ...map }))} />}
-      {eventModal && <EventModal event={eventModal.event} onClose={() => setEventModal(null)} onSaved={load} />}
+      {assigning && stage && (
+        <QuickAssignModal items={pending.map((m) => ({ id: m.id, label: m.title, round: m.round, position: m.position, hasTime: false }))}
+          onClose={() => setAssigning(false)} onApply={applyAuto} />
+      )}
+      {timeFor && <TimeModal match={timeFor} onClose={() => setTimeFor(null)} onSaved={load} />}
+      {eventModal && (
+        <EventModal event={eventModal.event} onClose={() => setEventModal(null)} onSaved={load}
+          onDelete={eventModal.event ? () => { removeEvent(eventModal.event); setEventModal(null) } : null} />
+      )}
     </>
   )
 }

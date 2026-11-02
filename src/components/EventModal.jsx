@@ -5,7 +5,7 @@ import { Modal } from './ui'
 import { GAME_LABEL, toLocalInput } from '../lib/format'
 
 // Evento libre del cronograma (inauguración, descanso, premiación…). `event` null = nuevo.
-export default function EventModal({ event, onClose, onSaved }) {
+export default function EventModal({ event, onClose, onSaved, onDelete }) {
   const toast = useToast()
   const [form, setForm] = useState({
     title: event?.title ?? '', game_key: event?.game_key ?? '', starts: event ? toLocalInput(event.starts_at) : '',
@@ -49,7 +49,10 @@ export default function EventModal({ event, onClose, onSaved }) {
           </label>
         </div>
         <label className="field"><span>Nota (opcional)</span><input value={form.note} maxLength={200} placeholder="Lugar, detalle…" onChange={(e) => set('note', e.target.value)} /></label>
-        <button className="btn btn--primary" disabled={busy} type="submit">{busy ? 'Guardando…' : 'Guardar'}</button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn--primary" disabled={busy} type="submit">{busy ? 'Guardando…' : 'Guardar'}</button>
+          {onDelete && <button className="btn btn--bad" disabled={busy} type="button" onClick={onDelete} style={{ marginLeft: 'auto' }}>Eliminar</button>}
+        </div>
       </form>
     </Modal>
   )

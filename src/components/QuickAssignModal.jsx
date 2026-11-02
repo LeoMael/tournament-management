@@ -4,7 +4,7 @@ import { autoSchedule } from '../lib/schedule'
 import { toLocalInput } from '../lib/format'
 
 // Asignación rápida: reparte horas a los partidos pendientes de una fase por orden de ronda.
-// No guarda nada: devuelve las horas a la tabla, donde se revisan y se guardan.
+// Muestra cómo quedarían las horas y, al aplicar, las devuelve para guardarlas.
 //   items: [{ id, label, round, position, hasTime }]  (solo partidos que se pueden jugar)
 export default function QuickAssignModal({ items, onApply, onClose }) {
   const [day, setDay] = useState('')
@@ -23,7 +23,7 @@ export default function QuickAssignModal({ items, onApply, onClose }) {
 
   return (
     <Modal title="Asignación rápida de horas" onClose={onClose}>
-      <p className="hint">Reparte las horas por orden de ronda. Luego las revisas en la tabla y las guardas.</p>
+      <p className="hint">Reparte las horas por orden de ronda. Revisa cómo quedan abajo antes de aplicar.</p>
       <div className="form-row">
         <label className="field"><span>Día</span><input type="date" value={day} onChange={(e) => setDay(e.target.value)} /></label>
         <label className="field"><span>Hora de inicio</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
@@ -45,7 +45,7 @@ export default function QuickAssignModal({ items, onApply, onClose }) {
 
       <button className="btn btn--primary" type="button" disabled={plan.length === 0}
         onClick={() => { onApply(Object.fromEntries(plan.map((p) => [p.id, toLocalInput(p.at.toISOString())]))); onClose() }}>
-        Aplicar a {plan.length} {plan.length === 1 ? 'partido' : 'partidos'}
+        Aplicar y guardar en {plan.length} {plan.length === 1 ? 'partido' : 'partidos'}
       </button>
     </Modal>
   )
