@@ -153,7 +153,7 @@ export default function Teams() {
           <thead>
             <tr>
               <th className="num">#</th><th></th><th>Equipo</th>
-              {placing?.rooms > 1 && <th>Sala</th>}{placing && <th title="Lugar del equipo en la sala">Lugar</th>}
+              {placing?.rooms > 1 && <th>Sala</th>}{placing && <th title="Lugar del equipo en la sala">Lugar en la sala</th>}
               {stageCount > 0 && <th>Fase</th>}<th className="num" title="Partidos jugados">PJ</th><th className="num" title={isBr ? 'Booyahs' : 'Victorias'}>{isBr ? 'Booyah' : 'G'}</th>
               {!isBr && <th className="num" title="Derrotas">P</th>}
               {!isBr && <th className="num" title="Diferencia de marcador">Dif</th>}
@@ -208,7 +208,7 @@ export default function Teams() {
                           {team.institution === 'UNAP' ? 'UNAP' : team.other_institution || 'Otra institución'}
                           {team.professional_school ? ` · ${team.professional_school}` : ''}
                           {placing?.rooms > 1 && inRoom ? ` · Sala ${placing.roomOf(team.id)}` : ''}
-                          {placing && inRoom ? ` · Lugar ${placing.slots[team.id]}` : ''}
+                          {placing && inRoom ? ` · Lugar en la sala: ${placing.slots[team.id]}` : ''}
                         </p>
                         {members.length === 0 ? <p className="hint">Sin integrantes registrados.</p> : (
                           <ul className="roster-list">
