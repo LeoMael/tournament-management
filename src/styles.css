@@ -664,6 +664,26 @@ button.rb-btn[aria-pressed="true"] { background: var(--accent-soft); border-colo
 .live-url[aria-invalid="true"] { border-color: var(--bad); }
 .live-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 
+/* ---------- En vivo: Guía de transmisión y slots ---------- */
+.live-guide { margin-top: 24px; display: grid; gap: 16px; }
+.live-guide-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.live-guide-title { font-size: 15px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; }
+.live-guide-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.live-guide-search { height: 36px; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; padding: 0 12px; width: min(280px, 100%); }
+.live-guide-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 12.5px; color: var(--muted); padding: 10px 14px; background: var(--surface-2); border-radius: 10px; border: 1px solid var(--border); }
+.live-guide-meta strong { color: var(--text); font-weight: 700; }
+.live-meta-group { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.live-table th { padding: 11px 16px; font-size: 11px; }
+.live-table td { padding: 11px 16px; font-size: 13px; }
+.live-slot-badge { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--surface-3); color: var(--accent); }
+.live-team-name { font-weight: 700; color: var(--text); }
+.live-inst-tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; font-family: var(--mono); background: var(--surface-3); color: var(--muted); }
+.live-inst-tag--unap { background: var(--accent-soft); color: var(--accent); }
+.live-career { color: var(--text); font-weight: 500; font-size: 13px; }
+.live-vs-badge { display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 800; color: var(--muted); padding: 2px 6px; border-radius: 6px; background: var(--surface-3); }
+.live-match-team { display: grid; gap: 2px; }
+.live-match-sub { color: var(--muted); font-size: 12px; }
+
 /* ---------- Equipos y puntos: integrantes desplegables ---------- */
 .members-toggle { align-self: flex-start; border: 0; background: transparent; padding: 0; color: var(--accent); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .members-toggle:hover { text-decoration: underline; }
