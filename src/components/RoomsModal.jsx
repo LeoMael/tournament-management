@@ -74,8 +74,15 @@ export default function RoomsModal({ teams, rooms: initialRooms, roomOf, slotOf,
     reslot(next, {})
   }
 
+  const saveBtn = (
+    <button className="btn btn--primary" type="button" disabled={busy || overfull.length > 0 || hasDup}
+      onClick={() => onSave(rooms, rooms > 1 ? assign : {}, slots)}>
+      {busy ? 'Guardando…' : 'Guardar salas'}
+    </button>
+  )
+
   return (
-    <Modal title="Salas de la fase" onClose={onClose} wide>
+    <Modal title="Salas de la fase" onClose={onClose} actions={saveBtn} wide>
       <p className="hint">Cada sala juega por separado y tiene su propia tabla. Máximo {ROOM_SIZE} equipos por sala. El número de cada equipo es fijo y no depende de su posición.</p>
       <div className="room-bar">
         <span className="room-bar-label">Salas</span>
@@ -112,10 +119,6 @@ export default function RoomsModal({ teams, rooms: initialRooms, roomOf, slotOf,
         ))}
       </div>
       {hasDup && <p className="pv-caption pv-caption--warn">Hay números repetidos en una sala (en rojo). Cada equipo necesita su propio número.</p>}
-      <button className="btn btn--primary" type="button" disabled={busy || overfull.length > 0 || hasDup}
-        onClick={() => onSave(rooms, rooms > 1 ? assign : {}, slots)}>
-        {busy ? 'Guardando…' : 'Guardar salas'}
-      </button>
     </Modal>
   )
 }
