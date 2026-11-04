@@ -293,8 +293,8 @@ tbody tr:hover td { background: var(--surface-2); }
 .seg-btn--approved.seg-btn--on { background: var(--ok-soft); color: var(--ok); }
 .seg-btn--rejected.seg-btn--on { background: var(--bad-soft); color: var(--bad); }
 .seg-btn--withdrawn.seg-btn--on { background: var(--surface-3); color: var(--text); }
-.row--withdrawn td { opacity: .55; }
-.row--withdrawn .team-name { text-decoration: line-through; }
+.row--withdrawn td, .row-withdrawn td { opacity: .55; }
+.row--withdrawn .team-name, .row-withdrawn .team-name { text-decoration: line-through; }
 .rank { font-family: var(--mono); font-weight: 700; color: var(--accent); }
 .seg-count { font-family: var(--mono); font-size: 11px; opacity: .75; }
 .th-actions { text-align: right; }
@@ -319,6 +319,10 @@ tbody tr:hover td { background: var(--surface-2); }
 .table-lg .tag { font-size: 12px; padding: 3px 10px; }
 .team-cell { display: grid; gap: 3px; min-width: 150px; }
 .team-cell > span:first-child { font-size: 15.5px; }
+.team-cell:has(.table-logo),
+.team-cell--inline { display: flex; align-items: center; gap: 10px; min-width: 160px; }
+.table-logo { width: 32px; height: 32px; max-width: 32px; max-height: 32px; border-radius: 8px; object-fit: cover; background: var(--surface-3); border: 1px solid var(--border); display: block; flex-shrink: 0; box-sizing: border-box; }
+.table-wrap img, table img { max-width: 48px; max-height: 48px; }
 .obs-line { display: block; max-width: 280px; overflow: hidden; text-overflow: ellipsis; color: var(--warn); font-size: 12.5px; font-weight: 500; font-style: italic; }
 .obs-line::before { content: "Obs: "; font-style: normal; font-weight: 700; }
 .no-image { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 28px 18px; border: 1px dashed var(--border-strong); border-radius: 12px; background: var(--surface-2); color: var(--muted); }

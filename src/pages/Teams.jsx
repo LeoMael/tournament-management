@@ -283,12 +283,12 @@ export default function Teams() {
               const inRoom = placing?.ids.has(team.id)
               return (
                 <Fragment key={team.id}>
-                <tr className={out ? 'row-withdrawn' : undefined}>
+                <tr className={out ? 'row--withdrawn' : undefined}>
                   <td className="num">{rank ? <b>{rank}</b> : '—'}</td>
                   <td><span className={`dot ${open ? 'dot--on' : ''}`} /></td>
                   <td>
-                    <div className="team-cell">
-                      {logo && <img src={logo} alt="" className="table-logo" />}
+                    <div className="team-cell team-cell--inline">
+                      {logo && <img src={logo} alt="" className="table-logo" loading="lazy" />}
                       <strong className="team-name">{team.team_name}</strong>
                       {team.status === 'withdrawn' && <span className="badge badge--withdrawn">Retirado</span>}
                     </div>
