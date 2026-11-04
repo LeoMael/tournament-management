@@ -320,18 +320,17 @@ export function resolveSlots(teams, roomOf, slotOf = {}) {
     byRoom.get(room).push(t)
   })
   for (const list of byRoom.values()) {
-    const used = new Set()
+    const withSlot = []
+    const withoutSlot = []
     list.forEach((t) => {
-      const n = slotOf?.[t.id]
-      if (Number.isInteger(n) && n >= 1 && !used.has(n)) { out[t.id] = n; used.add(n) }
+      const s = slotOf?.[t.id]
+      if (Number.isInteger(s) && s >= 1) withSlot.push({ team: t, slot: s })
+      else withoutSlot.push(t)
     })
-    let next = 1
-    ;[...list].sort((a, b) => a.team_name.localeCompare(b.team_name)).forEach((t) => {
-      if (out[t.id]) return
-      while (used.has(next)) next++
-      out[t.id] = next
-      used.add(next)
-    })
+    withSlot.sort((a, b) => a.slot - b.slot || (a.team.team_name || '').localeCompare(b.team.team_name || ''))
+    withoutSlot.sort((a, b) => (a.team_name || '').localeCompare(b.team_name || ''))
+    const ordered = [...withSlot.map((w) => w.team), ...withoutSlot]
+    ordered.forEach((t, i) => { out[t.id] = Math.min(i + 1, ROOM_SIZE) })
   }
   return out
 }

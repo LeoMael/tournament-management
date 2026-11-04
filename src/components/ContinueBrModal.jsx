@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { Modal } from './ui'
 import { generateStage } from '../lib/generateStage'
 import { distributeRooms, resolveSlots, roomsNeeded } from '../lib/bracket'
+import { roomOfStage } from '../lib/rooms'
 
 // Continuar desde una fase Battle Royale: se tocan los equipos que pasan a una nueva fase Battle Royale con
 // sus propias partidas. Si la fase tiene varias salas, cada una tiene su tabla y pasan los mejores de cada sala.
@@ -11,7 +12,7 @@ import { distributeRooms, resolveSlots, roomsNeeded } from '../lib/bracket'
 export default function ContinueBrModal({ stage, totals, teamName, pending, nextPosition, onClose, onCreated }) {
   const toast = useToast()
   const rooms = Number(stage.config?.rooms) || 1
-  const roomOf = (id) => (rooms > 1 ? Math.min(stage.config?.room_of?.[id] ?? 1, rooms) : 1)
+  const roomOf = roomOfStage(stage)
   const preset = Number(stage.config?.qualify_count) || 0 // 0 = no se definió antes (por sala si hay varias)
   const [manual, setManual] = useState({})
   const [name, setName] = useState('Gran final')

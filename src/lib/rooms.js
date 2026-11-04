@@ -6,8 +6,35 @@
 // Las marcas manuales se guardan en la configuración de la fase: config.finished = { [partida]: [salas] }.
 
 export const roomOfStage = (stage) => {
-  const rooms = Number(stage.config?.rooms) || 1
-  return (id) => (rooms > 1 ? Math.min(stage.config?.room_of?.[id] ?? 1, rooms) : 1)
+  const rooms = Number(stage?.config?.rooms) || 1
+  if (rooms <= 1) return () => 1
+
+  const roomOfMap = stage?.config?.room_of || {}
+  const counts = Array.from({ length: rooms + 1 }, () => 0)
+  Object.values(roomOfMap).forEach((r) => {
+    if (r >= 1 && r <= rooms) counts[r]++
+  })
+
+  const fallbackCache = new Map()
+
+  return (id) => {
+    const saved = roomOfMap[id]
+    if (saved && saved >= 1 && saved <= rooms) return saved
+    if (fallbackCache.has(id)) return fallbackCache.get(id)
+
+    // Buscar la sala con cupo (< 12) que tenga menos equipos para balancear
+    let bestRoom = 1
+    let minCount = Infinity
+    for (let r = 1; r <= rooms; r++) {
+      if (counts[r] < 12 && counts[r] < minCount) {
+        minCount = counts[r]
+        bestRoom = r
+      }
+    }
+    counts[bestRoom]++
+    fallbackCache.set(id, bestRoom)
+    return bestRoom
+  }
 }
 
 export function roomState(stage, matchId, room, results, teams) {

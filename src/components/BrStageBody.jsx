@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { battleRoyaleTotals } from '../lib/standings'
 import { resolveSlots } from '../lib/bracket'
-import { lobbyState, roomState, STATE_LABEL } from '../lib/rooms'
+import { lobbyState, roomOfStage, roomState, STATE_LABEL } from '../lib/rooms'
 import { shortDateTime } from '../lib/format'
 
 // Fase Battle Royale: un árbol a la izquierda (tabla acumulada por sala y, por cada partida, sus salas)
 // y a la derecha lo que se elige. Así cada sala se ve por separado.
 export default function BrStageBody({ stage, matches, results, teams, teamName, busy, onAddLobby, onDeleteLobby, onSetQualify, onOpenLobby, onSetRoomFinished }) {
   const rooms = Number(stage.config?.rooms) || 1
-  const roomOf = (id) => (rooms > 1 ? Math.min(stage.config?.room_of?.[id] ?? 1, rooms) : 1)
+  const roomOf = roomOfStage(stage)
   const roomList = Array.from({ length: rooms }, (_, i) => i + 1)
   const qualifyCount = Number(stage.config?.qualify_count) || 0
   const champion = stage.config?.champion

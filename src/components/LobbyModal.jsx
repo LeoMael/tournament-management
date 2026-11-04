@@ -4,14 +4,14 @@ import { useToast } from '../context/ToastContext'
 import { Modal } from './ui'
 import LobbyBoard from './LobbyBoard'
 import { brPoints, resolveSlots } from '../lib/bracket'
-import { lobbyState, roomState, STATE_LABEL } from '../lib/rooms'
+import { lobbyState, roomOfStage, roomState, STATE_LABEL } from '../lib/rooms'
 
 // Resultado de una partida Battle Royale. Si la fase tiene varias salas, cada sala es una pestaña y el
 // puesto (1.º, 2.º…) se cuenta dentro de su sala.
 export default function LobbyModal({ match, stage, teams, results, initialRoom = 1, onClose, onSaved }) {
   const toast = useToast()
   const rooms = Number(stage.config?.rooms) || 1
-  const roomOf = (id) => (rooms > 1 ? Math.min(stage.config?.room_of?.[id] ?? 1, rooms) : 1)
+  const roomOf = roomOfStage(stage)
   const mine = results.filter((x) => x.match_id === match.id)
   const [tab, setTab] = useState(Math.min(initialRoom, rooms))
   const [orders, setOrders] = useState(() => {
