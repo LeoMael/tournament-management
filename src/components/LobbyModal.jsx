@@ -23,7 +23,7 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
     let active = true
     supabase
       .from('players')
-      .select('registration_id, slot, nickname, game_player_id')
+      .select('registration_id, slot, is_substitute, nickname, game_player_id')
       .in('registration_id', ids)
       .order('slot')
       .then(({ data, error }) => {

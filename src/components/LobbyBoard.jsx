@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { useToast } from '../context/ToastContext'
 import { DEFAULT_PLACEMENT_POINTS } from '../lib/bracket'
 
 // Función de normalización solo para comparar en la búsqueda:
@@ -25,8 +26,57 @@ export default function LobbyBoard({
   onKills,
   onClearRoom,
 }) {
+  const toast = useToast()
   const [query, setQuery] = useState('')
   const [sortBy, setSortBy] = useState('slot') // 'slot' | 'place'
+  const [copiedAi, setCopiedAi] = useState(false)
+
+  const handleCopyForAI = useCallback(async () => {
+    const sorted = [...teams].sort((a, b) => (a.slot ?? 99) - (b.slot ?? 99) || a.name.localeCompare(b.name))
+
+    const listLines = sorted.map((t) => {
+      const slotLabel = t.slot ? `Slot #${t.slot}` : 'Slot s/n'
+      const playerList = (t.players && t.players.length > 0)
+        ? t.players.map((p) => `${p.nickname}${p.is_substitute ? ' (Suplente)' : ''}`).join(', ')
+        : 'Sin jugadores registrados'
+      return `${slotLabel} · ${t.name}: ${playerList}`
+    }).join('\n')
+
+    const promptText = `Actúa como árbitro asistente de torneos de Free Fire.
+Te adjunto la captura de la pantalla final de la partida.
+A continuación tienes la lista oficial de escuadras inscritas en esta sala con sus integrantes y suplentes registrados:
+
+${listLines}
+
+Instrucciones:
+1. Analiza la imagen adjunta con la tabla o resumen final de la partida.
+2. Identifica a qué escuadra corresponde cada puesto según los nicknames de sus integrantes (respetando símbolos especiales o tags).
+3. Suma las bajas (kills) totales de cada escuadra.
+4. Devuélveme el resultado únicamente en esta tabla de texto para transcribirlo rápidamente al panel:
+
+Slot | Equipo | Puesto | Kills`
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(promptText)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = promptText
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.focus()
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+      setCopiedAi(true)
+      toast.success('Lista y prompt copiados al portapapeles.')
+      setTimeout(() => setCopiedAi(false), 3000)
+    } catch {
+      toast.error('No se pudo copiar automáticamente al portapapeles.')
+    }
+  }, [teams, toast])
 
   const posTable = config?.placement_points ?? DEFAULT_PLACEMENT_POINTS
   const killPts = config?.kill_points ?? 1
@@ -133,6 +183,15 @@ export default function LobbyBoard({
 
           <button
             type="button"
+            className={`btn btn--sm ${copiedAi ? 'btn--ai-done' : 'btn--ai'}`}
+            onClick={handleCopyForAI}
+            title="Copiar prompt y lista de jugadores (titulares y suplentes) para enviar a la IA con la captura de la partida"
+          >
+            {copiedAi ? 'Copiado para IA' : 'Copiar para IA'}
+          </button>
+
+          <button
+            type="button"
             className="btn btn--sm btn--ghost text-danger"
             onClick={onClearRoom}
             title="Borrar puestos y kills de esta sala"
@@ -197,10 +256,11 @@ export default function LobbyBoard({
                           t.players.map((p, idx) => (
                             <span
                               key={p.game_player_id || idx}
-                              className="nick-chip"
-                              title={p.game_player_id ? `ID: ${p.game_player_id}` : undefined}
+                              className={`nick-chip ${p.is_substitute ? 'nick-chip--sub' : ''}`}
+                              title={p.game_player_id ? `ID: ${p.game_player_id}${p.is_substitute ? ' (Suplente)' : ''}` : (p.is_substitute ? 'Suplente' : undefined)}
                             >
                               {p.nickname}
+                              {p.is_substitute && <span className="nick-chip-subtag"> (S)</span>}
                             </span>
                           ))
                         ) : (
