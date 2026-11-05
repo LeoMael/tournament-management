@@ -603,6 +603,44 @@ button.rb-btn[aria-pressed="true"] { background: var(--accent-soft); border-colo
 .room-slot { width: 52px; height: 28px; border-radius: 7px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-weight: 800; text-align: center; }
 .room-slot--dup { border-color: var(--bad); background: var(--bad-soft); }
 
+/* ---------- Carga de resultados de sala (Opción 2: Tabla de Slots + Nicknames) ---------- */
+.tb-v2 { display: grid; gap: 12px; }
+.tb-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.tb-search-box { position: relative; flex: 1; min-width: 240px; max-width: 420px; }
+.tb-search-input { width: 100%; height: 36px; padding: 0 32px 0 12px; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px; }
+.tb-search-input:focus { border-color: var(--accent); outline: none; }
+.tb-search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.tb-search-clear:hover { color: var(--text); }
+.tb-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tb-badge-count { font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 4px 10px; border-radius: 99px; }
+.tb-warn-banner { background: var(--warn-soft); border-left: 3px solid var(--warn); color: var(--warn); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+.tb-table-v2 { width: 100%; border-collapse: collapse; }
+.tb-table-v2 th, .tb-table-v2 td { padding: 9px 10px; vertical-align: middle; }
+.tb-row { transition: background .12s, opacity .12s; }
+.tb-row--highlight { background: rgba(59, 130, 246, 0.12) !important; outline: 1px solid rgba(59, 130, 246, 0.4); }
+.tb-row--dim { opacity: 0.35; }
+.tb-row--booyah td { background: rgba(245, 158, 11, 0.06); }
+.slot-chip--gold { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
+.tb-team-info { display: grid; gap: 4px; min-width: 0; }
+.tb-team-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.tb-nicks { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.nick-chip { display: inline-block; padding: 2px 7px; border-radius: 6px; background: var(--surface-3); border: 1px solid var(--border); color: var(--text); font-size: 11.5px; font-weight: 500; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
+.nick-chip--empty { color: var(--muted); font-style: italic; background: transparent; border-style: dashed; }
+.tb-input-wrap { display: flex; justify-content: center; }
+.tb-input { height: 34px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; font-weight: 800; font-family: var(--mono); text-align: center; font-variant-numeric: tabular-nums; outline: none; transition: border-color .15s; }
+.tb-input:focus { border-color: var(--accent); }
+.tb-input--place { width: 62px; }
+.tb-input--kills { width: 56px; }
+.tb-input--dupe { border-color: var(--warn); background: var(--warn-soft); color: var(--warn); }
+.tb-input--booyah { border-color: #f59e0b; background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.tb-pts-box { display: grid; justify-items: end; line-height: 1.15; }
+.tb-pts-total { font-size: 15px; font-weight: 800; font-family: var(--mono); color: var(--ok); font-variant-numeric: tabular-nums; }
+.tb-pts-total--gold { color: #f59e0b; }
+.tb-pts-split { font-size: 10.5px; font-family: var(--mono); color: var(--faint); margin-top: 2px; }
+.tb-pts-empty { color: var(--faint); font-family: var(--mono); }
+.text-danger { color: var(--bad); }
+.text-danger:hover { color: var(--bad); background: var(--bad-soft); }
+
 /* ---------- Estado de cada sala ---------- */
 .state-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); flex: none; vertical-align: middle; }
 .state-dot--done { background: var(--ok); }
