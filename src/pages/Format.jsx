@@ -364,15 +364,15 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
     refresh()
   }
   // Fija (o quita, con null) al campeón de la fase Battle Royale.
-  const saveChampion = async (id) => {
+  const saveChampion = async (id, podiumIds) => {
     setBusyMatch('champion')
     const config = { ...stage.config }
-    if (id) config.champion = id
-    else delete config.champion
+    if (id) { config.champion = id; if (podiumIds?.length) config.podium = podiumIds; else delete config.podium; }
+    else { delete config.champion; delete config.podium; }
     const { error: err } = await supabase.from('stages').update({ config }).eq('id', stage.id)
     setBusyMatch(null)
     if (err) return toast.error(err.message)
-    toast.success(id ? 'Campeón registrado.' : 'Campeón quitado.')
+    toast.success(id ? 'Podio oficial registrado.' : 'Podio quitado.')
     setChoosingChampion(false)
     onChanged()
   }
@@ -588,7 +588,7 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
             <>
               <button className="btn" onClick={() => setEditingPoints(true)} type="button">Puntos</button>
               <button className="btn" onClick={() => setEditingRooms(true)} type="button">Salas ({Number(stage.config?.rooms) || 1})</button>
-              <button className="btn btn--gold" onClick={() => setChoosingChampion(true)} type="button">{stage.config?.champion ? 'Cambiar campeón' : 'Seleccionar campeón'}</button>
+              <button className="btn btn--gold" onClick={() => setChoosingChampion(true)} type="button">{stage.config?.champion ? 'Editar podio oficial' : 'Confirmar podio (Top 3)'}</button>
               <button className="btn btn--cta" onClick={() => setContinuingBr(true)} type="button">Continuar fase <span aria-hidden="true">→</span></button>
             </>
           )}
@@ -603,7 +603,30 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
         </div>
       </div>
       {stage.type === 'battle_royale' && stage.config?.champion && (
-        <div className="champion-banner"><span>Campeón</span><b>{teamName(stage.config.champion)}</b></div>
+        <div className="podio-banner">
+          <div className="podio-banner-head">
+            <span className="podio-banner-title">Podio Oficial de Ganadores</span>
+            <button className="btn btn--sm btn--ghost" onClick={() => setChoosingChampion(true)} type="button">Editar podio</button>
+          </div>
+          <div className="podio-banner-items">
+            <div className="podio-banner-item podio-banner-item--1">
+              <span className="podio-banner-rank">1.º Lugar · Campeón</span>
+              <strong className="podio-banner-name">{teamName(stage.config.champion)}</strong>
+            </div>
+            {stage.config?.podium?.[1] && (
+              <div className="podio-banner-item podio-banner-item--2">
+                <span className="podio-banner-rank">2.º Lugar · Subcampeón</span>
+                <strong className="podio-banner-name">{teamName(stage.config.podium[1])}</strong>
+              </div>
+            )}
+            {stage.config?.podium?.[2] && (
+              <div className="podio-banner-item podio-banner-item--3">
+                <span className="podio-banner-rank">3.º Lugar · Tercer Puesto</span>
+                <strong className="podio-banner-name">{teamName(stage.config.podium[2])}</strong>
+              </div>
+            )}
+          </div>
+        </div>
       )}
       {editing && (
         <div className="edit-bar">
@@ -626,7 +649,7 @@ function StageView({ stage, teamsById, nextPosition, onChanged, onDeleted, onCon
           busy={busyMatch === 'rooms'} onClose={() => setEditingRooms(false)} onSave={saveRooms} />
       )}
       {choosingChampion && (
-        <ChampionModal totals={battleRoyaleTotals(allTeams, results)} teamName={teamName} current={stage.config?.champion}
+        <ChampionModal totals={battleRoyaleTotals(allTeams, results)} teamName={teamName} current={stage.config?.champion} currentPodium={stage.config?.podium}
           pending={matches.filter((m) => m.status !== 'completed').length} busy={busyMatch === 'champion'}
           onClose={() => setChoosingChampion(false)} onSave={saveChampion} />
       )}

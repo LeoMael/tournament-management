@@ -12,6 +12,7 @@ export default function BrStageBody({ stage, matches, results, teams, teamName, 
   const roomList = Array.from({ length: rooms }, (_, i) => i + 1)
   const qualifyCount = Number(stage.config?.qualify_count) || 0
   const champion = stage.config?.champion
+  const podium = stage.config?.podium || (champion ? [champion] : [])
   const totals = battleRoyaleTotals(teams, results)
   const slots = resolveSlots(teams, roomOf, stage.config?.slot_of) // número fijo de cada equipo en su sala
 
@@ -37,12 +38,19 @@ export default function BrStageBody({ stage, matches, results, teams, teamName, 
         </h2>
         <div className="table-wrap"><table>
           <thead><tr><th title="Posición en la tabla">Pos.</th><th title="Número fijo en la sala">N.º</th><th>Equipo</th><th className="num">PJ</th><th className="num" title="Booyahs">Booyah</th><th className="num">Kills</th><th className="num">Pts</th></tr></thead>
-          <tbody>{rows.map((r, i) => (
-            <tr key={r.id} className={r.id === champion ? 'row--champion' : qualifyCount && i < qualifyCount ? 'row--qualify' : undefined}>
-              <td>{i + 1}</td><td><span className="slot-chip">{slots[r.id]}</span></td><td>{teamName(r.id)}{r.id === champion && <span className="badge badge--phase-champion" style={{ marginLeft: 8 }}>Campeón</span>}</td>
+          <tbody>{rows.map((r, i) => {
+            const pIdx = podium.indexOf(r.id)
+            const isChamp = pIdx === 0
+            const isSilver = pIdx === 1
+            const isBronze = pIdx === 2
+            const rowCls = isChamp ? 'row--champion' : isSilver ? 'row--silver' : isBronze ? 'row--bronze' : qualifyCount && i < qualifyCount ? 'row--qualify' : undefined
+            return (
+              <tr key={r.id} className={rowCls}>
+              <td>{i + 1}</td><td><span className="slot-chip">{slots[r.id]}</span></td><td>{teamName(r.id)}{isChamp && <span className="badge badge--phase-champion" style={{ marginLeft: 8 }}>Campeón</span>}{isSilver && <span className="badge badge--phase-silver" style={{ marginLeft: 8 }}>Subcampeón</span>}{isBronze && <span className="badge badge--phase-bronze" style={{ marginLeft: 8 }}>3.º Puesto</span>}</td>
               <td className="num">{r.played}</td><td className="num">{r.wins}</td><td className="num">{r.kills}</td><td className="num"><strong>{r.points}</strong></td>
             </tr>
-          ))}</tbody>
+          )
+          })}</tbody>
         </table></div>
         {rows.length === 0 && <p className="empty">Sin equipos en esta sala.</p>}
         {qualifyCount > 0 && <p className="hint" style={{ marginTop: 8 }}>{rooms > 1 ? `Pasan los ${qualifyCount} primeros de cada sala` : `Pasan los ${qualifyCount} primeros`} (en verde). Desempate: Booyahs y luego kills.</p>}

@@ -78,7 +78,11 @@ export function teamPhases(teams, stages, matches, results) {
       continue
     }
     if (stage.type === 'battle_royale' && stage.config?.champion) {
-      out.set(t.id, stage.config.champion === t.id ? { tone: 'champion', label: 'Campeón' } : { tone: 'out', label: `Terminó · ${stage.name}` })
+      const podium = stage.config?.podium || [stage.config.champion]
+      if (podium[0] === t.id) out.set(t.id, { tone: 'champion', label: 'Campeón' })
+      else if (podium[1] === t.id) out.set(t.id, { tone: 'approved', label: 'Subcampeón' })
+      else if (podium[2] === t.id) out.set(t.id, { tone: 'approved', label: '3.º Puesto' })
+      else out.set(t.id, { tone: 'out', label: `Terminó · ${stage.name}` })
       continue
     }
     if (stage.type === 'single_elim') {

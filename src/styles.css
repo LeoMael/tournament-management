@@ -479,7 +479,9 @@ button.bm-team:hover { background: var(--accent-soft); }
 .pv-slot--q { background: var(--ok) !important; }
 .pv-slot--out { background: var(--surface-3) !important; opacity: 1 !important; }
 .badge--phase-playing { color: var(--accent); background: var(--accent-soft); }
-.badge--phase-champion { color: var(--ok); background: var(--ok-soft); }
+.badge--phase-champion { color: #f59e0b; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); }
+.badge--phase-silver { color: #cbd5e1; background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.35); }
+.badge--phase-bronze { color: #f97316; background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.35); }
 .badge--phase-out, .badge--phase-idle { color: var(--muted); background: var(--surface-3); }
 
 /* ---------- Editar emparejamientos dentro de la llave (SlotCard) ---------- */
@@ -511,6 +513,23 @@ button.bm-team:hover { background: var(--accent-soft); }
 .qualify-field input { width: 64px; height: 30px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; padding: 0 8px; }
 .row--champion td { background: var(--warn-soft); }
 .row--champion td:first-child { box-shadow: inset 3px 0 0 var(--warn); font-weight: 800; }
+.row--silver td { background: rgba(148, 163, 184, 0.06); }
+.row--silver td:first-child { box-shadow: inset 3px 0 0 #94a3b8; font-weight: 800; }
+.row--bronze td { background: rgba(217, 119, 6, 0.06); }
+.row--bronze td:first-child { box-shadow: inset 3px 0 0 #d97706; font-weight: 800; }
+.podio-banner { margin-bottom: 14px; border: 1.5px solid rgba(245, 158, 11, 0.4); border-radius: 14px; background: var(--surface-2); padding: 14px 18px; display: grid; gap: 12px; }
+.podio-banner-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.podio-banner-title { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 800; color: #f59e0b; }
+.podio-banner-items { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.podio-banner-item { padding: 10px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); display: grid; gap: 3px; }
+.podio-banner-item--1 { border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.06); }
+.podio-banner-item--2 { border-color: rgba(148, 163, 184, 0.4); background: rgba(148, 163, 184, 0.06); }
+.podio-banner-item--3 { border-color: rgba(217, 119, 6, 0.4); background: rgba(217, 119, 6, 0.06); }
+.podio-banner-rank { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.podio-banner-item--1 .podio-banner-rank { color: #f59e0b; }
+.podio-banner-item--2 .podio-banner-rank { color: #cbd5e1; }
+.podio-banner-item--3 .podio-banner-rank { color: #f97316; }
+.podio-banner-name { font-size: 15px; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .champion-banner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 14px; border: 1px solid var(--warn); border-radius: 12px; background: var(--warn-soft); }
 .champion-banner span { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--warn); font-weight: 700; }
 .champion-banner b { font-size: 18px; }
