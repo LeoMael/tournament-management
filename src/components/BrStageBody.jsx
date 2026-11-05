@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { supabase } from '../supabaseClient'
+import { useToast } from '../context/ToastContext'
 import { battleRoyaleTotals } from '../lib/standings'
 import { resolveSlots } from '../lib/bracket'
 import { lobbyState, roomOfStage, roomState, STATE_LABEL } from '../lib/rooms'
@@ -15,6 +17,74 @@ export default function BrStageBody({ stage, matches, results, teams, teamName, 
   const podium = stage.config?.podium || (champion ? [champion] : [])
   const totals = battleRoyaleTotals(teams, results)
   const slots = resolveSlots(teams, roomOf, stage.config?.slot_of) // número fijo de cada equipo en su sala
+
+  const toast = useToast()
+  const [copiedAi, setCopiedAi] = useState(false)
+
+  const copyRoomForAi = async (room) => {
+    const roomTeams = teams.filter((t) => roomOf(t.id) === room)
+    if (!roomTeams.length) return toast.error('No hay equipos en esta sala.')
+
+    const teamIds = roomTeams.map((t) => t.id)
+    const { data: players, error } = await supabase
+      .from('players')
+      .select('registration_id, slot, is_substitute, nickname, game_player_id')
+      .in('registration_id', teamIds)
+      .order('slot')
+
+    if (error) return toast.error('Error al cargar integrantes de la sala.')
+
+    const playersByTeam = new Map()
+    ;(players || []).forEach((p) => {
+      playersByTeam.set(p.registration_id, [...(playersByTeam.get(p.registration_id) ?? []), p])
+    })
+
+    const sorted = [...roomTeams].sort((a, b) => (slots[a.id] ?? 99) - (slots[b.id] ?? 99) || teamName(a.id).localeCompare(teamName(b.id)))
+
+    const listLines = sorted.map((t) => {
+      const slotNum = slots[t.id] ? `Slot #${slots[t.id]}` : 'Slot s/n'
+      const pList = playersByTeam.get(t.id)
+      const playerStr = (pList && pList.length > 0)
+        ? pList.map((p) => `${p.nickname}${p.is_substitute ? ' (Suplente)' : ''}`).join(', ')
+        : 'Sin jugadores registrados'
+      return `${slotNum} · ${teamName(t.id)}: ${playerStr}`
+    }).join('\n')
+
+    const promptText = `Actúa como árbitro asistente de torneos de Free Fire.
+Te adjunto la captura de la pantalla final de la partida.
+A continuación tienes la lista oficial de escuadras inscritas en esta sala con sus integrantes y suplentes registrados:
+
+${listLines}
+
+Instrucciones:
+1. Analiza la imagen adjunta con la tabla o resumen final de la partida.
+2. Identifica a qué escuadra corresponde cada puesto según los nicknames de sus integrantes (respetando símbolos especiales o tags).
+3. Suma las bajas (kills) totales de cada escuadra.
+4. Devuélveme el resultado únicamente en esta tabla de texto para transcribirlo rápidamente al panel:
+
+Slot | Equipo | Puesto | Kills`
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(promptText)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = promptText
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.focus()
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+      setCopiedAi(true)
+      toast.success('Lista de sala y prompt copiados al portapapeles.')
+      setTimeout(() => setCopiedAi(false), 3000)
+    } catch {
+      toast.error('No se pudo copiar automáticamente al portapapeles.')
+    }
+  }
 
   const [view, setView] = useState({ kind: 'table', room: 1 })
   const [open, setOpen] = useState(() => new Set())
@@ -71,6 +141,14 @@ export default function BrStageBody({ stage, matches, results, teams, teamName, 
             {info.state === 'done'
               ? info.marked && <button className="btn btn--sm" type="button" onClick={() => onSetRoomFinished(match, room, false)}>Reabrir sala</button>
               : info.state === 'live' && <button className="btn btn--sm btn--ok" type="button" onClick={() => onSetRoomFinished(match, room, true)} title="Termina aunque falten equipos por colocar">Marcar terminada</button>}
+            <button
+              className={`btn btn--sm ${copiedAi ? 'btn--ai-done' : 'btn--ai'}`}
+              type="button"
+              onClick={() => copyRoomForAi(room)}
+              title="Copiar lista de jugadores (titulares y suplentes) y prompt para consultar a la IA"
+            >
+              {copiedAi ? 'Copiado para IA' : 'Copiar para IA'}
+            </button>
             <button className="btn btn--sm btn--primary" type="button" onClick={() => onOpenLobby(match, room)}>
               {placed.length ? 'Editar resultado' : 'Cargar resultado'}
             </button>
