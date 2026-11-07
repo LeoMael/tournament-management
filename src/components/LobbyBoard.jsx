@@ -1,85 +1,325 @@
-// Resultado de una sala Battle Royale. Dos partes lado a lado:
-//  - IZQUIERDA: los equipos de la sala (con su N.º fijo). Se toca cada equipo cuando termina: el primero
-//    que se toca queda 1.º, el siguiente 2.º, y así.
-//  - DERECHA: la tabla de posiciones que se va armando (puesto, N.º, equipo, kills y puntos), donde se
-//    ajustan los kills y se corrige el orden con ↑ ↓ o se quita un equipo con ×.
-//  teams: [{ id, name, slot }]
-export default function LobbyBoard({ teams, order, kills, onOrder, onKills, pointsOf }) {
-  const sorted = [...teams].sort((a, b) => (a.slot ?? 99) - (b.slot ?? 99) || a.name.localeCompare(b.name))
-  const byId = new Map(teams.map((t) => [t.id, t]))
-  const setKills = (id, value) => onKills(id, Math.max(0, Math.min(99, value)))
-  const place = (id) => order.indexOf(id) + 1
-  const move = (index, delta) => {
-    const next = [...order]
-    const target = index + delta
-    if (target < 0 || target >= next.length) return
-    ;[next[index], next[target]] = [next[target], next[index]]
-    onOrder(next)
-  }
+import { useState, useMemo, useCallback } from 'react'
+import { useToast } from '../context/ToastContext'
+import { DEFAULT_PLACEMENT_POINTS } from '../lib/bracket'
+
+// Función de normalización solo para comparar en la búsqueda:
+// Descompone caracteres unicode (ej. fuentes fullwidth, acentos) y remueve marcas para comparar texto plano.
+// NUNCA modifica el nickname real en pantalla ni en la base de datos.
+function normalizeForSearch(str) {
+  if (!str) return ''
+  return String(str)
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
+}
+
+// Carga de resultados de una sala Battle Royale (Opción 2: Tabla de Slots con Nicknames visibles).
+// teams: [{ id, name, slot, players: [{ nickname, game_player_id, slot }] }]
+export default function LobbyBoard({
+  teams,
+  placements,
+  kills,
+  pointsOf,
+  config,
+  onPlacement,
+  onKills,
+  onClearRoom,
+}) {
+  const toast = useToast()
+  const [query, setQuery] = useState('')
+  const [sortBy, setSortBy] = useState('slot') // 'slot' | 'place'
+  const [copiedAi, setCopiedAi] = useState(false)
+
+  const handleCopyForAI = useCallback(async () => {
+    const sorted = [...teams].sort((a, b) => (a.slot ?? 99) - (b.slot ?? 99) || a.name.localeCompare(b.name))
+
+    const listLines = sorted.map((t) => {
+      const slotLabel = t.slot ? `Slot #${t.slot}` : 'Slot s/n'
+      const playerList = (t.players && t.players.length > 0)
+        ? t.players.map((p) => `${p.nickname}${p.is_substitute ? ' (Suplente)' : ''}`).join(', ')
+        : 'Sin jugadores registrados'
+      return `${slotLabel} · ${t.name}: ${playerList}`
+    }).join('\n')
+
+    const promptText = `Actúa como árbitro asistente de torneos de Free Fire.
+Te adjunto la captura de la pantalla final de la partida.
+A continuación tienes la lista oficial de escuadras inscritas en esta sala con sus integrantes y suplentes registrados:
+
+${listLines}
+
+Instrucciones:
+1. Analiza la imagen adjunta con la tabla o resumen final de la partida.
+2. Identifica a qué escuadra corresponde cada puesto según los nicknames de sus integrantes (respetando símbolos especiales o tags).
+3. Suma las bajas (kills) totales de cada escuadra.
+4. Devuélveme el resultado únicamente en esta tabla de texto para transcribirlo rápidamente al panel:
+
+Slot | Equipo | Puesto | Kills`
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(promptText)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = promptText
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.focus()
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+      setCopiedAi(true)
+      toast.success('Lista y prompt copiados al portapapeles.')
+      setTimeout(() => setCopiedAi(false), 3000)
+    } catch {
+      toast.error('No se pudo copiar automáticamente al portapapeles.')
+    }
+  }, [teams, toast])
+
+  const posTable = config?.placement_points ?? DEFAULT_PLACEMENT_POINTS
+  const killPts = config?.kill_points ?? 1
+
+  // Detección de puestos duplicados en esta sala
+  const duplicatePlaces = useMemo(() => {
+    const counts = {}
+    teams.forEach((t) => {
+      const p = placements[t.id]
+      if (p !== '' && p !== null && p !== undefined && Number(p) >= 1) {
+        const num = Number(p)
+        counts[num] = (counts[num] ?? 0) + 1
+      }
+    })
+    return new Set(Object.keys(counts).filter((p) => counts[p] > 1).map(Number))
+  }, [teams, placements])
+
+  // Función de coincidencia para el buscador
+  const isMatch = useCallback((team, rawQ) => {
+    if (!rawQ) return true
+    const q = rawQ.trim().toLowerCase()
+    const normQ = normalizeForSearch(rawQ)
+
+    // Coincidencia por nombre de equipo
+    if (team.name.toLowerCase().includes(q)) return true
+    if (normQ && normalizeForSearch(team.name).includes(normQ)) return true
+
+    // Coincidencia por número de slot (ej. "1", "slot 1", "#1")
+    if (String(team.slot) === q || `slot ${team.slot}`.includes(q) || `#${team.slot}`.includes(q)) return true
+
+    // Coincidencia por nicknames de los integrantes
+    for (const p of team.players || []) {
+      if (!p.nickname) continue
+      // Coincidencia exacta con símbolos
+      if (p.nickname.toLowerCase().includes(q)) return true
+      // Coincidencia ignorando símbolos y fuentes raras
+      if (normQ && normalizeForSearch(p.nickname).includes(normQ)) return true
+    }
+
+    return false
+  }, [])
+
+  // Lista ordenada de equipos según el criterio seleccionado
+  const displayTeams = useMemo(() => {
+    const list = [...teams]
+    if (sortBy === 'place') {
+      return list.sort((a, b) => {
+        const pa = placements[a.id] ? Number(placements[a.id]) : 99
+        const pb = placements[b.id] ? Number(placements[b.id]) : 99
+        return pa - pb || (a.slot ?? 99) - (b.slot ?? 99)
+      })
+    }
+    // Por defecto por Slot
+    return list.sort((a, b) => (a.slot ?? 99) - (b.slot ?? 99) || a.name.localeCompare(b.name))
+  }, [teams, placements, sortBy])
+
+  const placedCount = teams.filter((t) => placements[t.id] !== '' && placements[t.id] !== null && placements[t.id] !== undefined && Number(placements[t.id]) >= 1).length
 
   return (
-    <div className="tb-layout">
-      <section className="tb-pick">
-        <h3>Equipos de la sala</h3>
-        <p className="hint">Toca cada equipo <b>cuando termine</b>: el primero que toques queda 1.º, el siguiente 2.º…</p>
-        <div className="tb-grid">
-          {sorted.map((t) => {
-            const p = place(t.id)
-            return (
-              <button key={t.id} type="button" className={`tb-card ${p ? 'tb-card--on' : ''} ${p === 1 ? 'tb-card--first' : ''}`} disabled={p > 0}
-                onClick={() => onOrder([...order, t.id])} title={p ? `Ya tiene el puesto ${p}` : 'Tocar si terminó en el siguiente puesto'}>
-                <span className="tb-slot" title="Número fijo en la sala">{t.slot ?? '·'}</span>
-                <span className="tb-name">{t.name}</span>
-                <span className="tb-place">{p ? `${p}°` : ''}</span>
-              </button>
-            )
-          })}
+    <div className="tb-v2">
+      {/* Barra superior de herramientas y búsqueda */}
+      <div className="tb-toolbar">
+        <div className="tb-search-box">
+          <input
+            type="text"
+            className="tb-search-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por nickname, equipo o slot (#1..#12)..."
+          />
+          {query && (
+            <button
+              type="button"
+              className="tb-search-clear"
+              onClick={() => setQuery('')}
+              title="Borrar búsqueda"
+            >
+              ×
+            </button>
+          )}
         </div>
-      </section>
 
-      <section className="tb-table-box">
-        <div className="tb-table-head">
-          <h3>Posiciones <span className="tb-count">{order.length}/{teams.length}</span></h3>
-          <button className="btn btn--sm" type="button" disabled={!order.length} onClick={() => onOrder(order.slice(0, -1))}>Deshacer último</button>
-          <button className="btn btn--sm btn--ghost" type="button" disabled={!order.length} onClick={() => onOrder([])}>Limpiar</button>
-        </div>
-        {order.length === 0 ? (
-          <p className="tb-empty">Aún no hay posiciones. Toca el primer equipo que terminó.</p>
-        ) : (
-          <div className="table-wrap">
-            <table className="tb-table">
-              <thead><tr><th>Puesto</th><th>N.º</th><th>Equipo</th><th>Kills</th><th className="num">Pts</th><th /></tr></thead>
-              <tbody>
-                {order.map((id, i) => {
-                  const k = kills[id] ?? 0
-                  return (
-                    <tr key={id} className={i === 0 ? 'tb-row--first' : undefined}>
-                      <td><b className="tb-pos">{i + 1}°</b></td>
-                      <td><span className="slot-chip">{byId.get(id)?.slot ?? '·'}</span></td>
-                      <td className="tb-team">{byId.get(id)?.name}</td>
-                      <td>
-                        <span className="lb-kills" role="group" aria-label={`Kills de ${byId.get(id)?.name}`}>
-                          <button type="button" aria-label="Menos kills" disabled={k <= 0} onClick={() => setKills(id, k - 1)}>−</button>
-                          <output>{k}</output>
-                          <button type="button" aria-label="Más kills" onClick={() => setKills(id, k + 1)}>+</button>
-                        </span>
-                      </td>
-                      <td className="num"><strong>{pointsOf(i + 1, k)}</strong></td>
-                      <td>
-                        <span className="lb-move">
-                          <button type="button" aria-label="Subir" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
-                          <button type="button" aria-label="Bajar" disabled={i === order.length - 1} onClick={() => move(i, 1)}>↓</button>
-                          <button type="button" aria-label="Quitar" onClick={() => onOrder(order.filter((x) => x !== id))}>×</button>
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+        <div className="tb-tools">
+          <span className="tb-badge-count">
+            {placedCount}/{teams.length} asignados
+          </span>
+
+          <div className="seg" role="group" aria-label="Ordenar">
+            <button
+              type="button"
+              className={`seg-btn ${sortBy === 'slot' ? 'seg-btn--on' : ''}`}
+              onClick={() => setSortBy('slot')}
+            >
+              Por Slot
+            </button>
+            <button
+              type="button"
+              className={`seg-btn ${sortBy === 'place' ? 'seg-btn--on' : ''}`}
+              onClick={() => setSortBy('place')}
+            >
+              Por Puesto
+            </button>
           </div>
-        )}
-      </section>
+
+          <button
+            type="button"
+            className={`btn btn--sm ${copiedAi ? 'btn--ai-done' : 'btn--ai'}`}
+            onClick={handleCopyForAI}
+            title="Copiar prompt y lista de jugadores (titulares y suplentes) para enviar a la IA con la captura de la partida"
+          >
+            {copiedAi ? 'Copiado para IA' : 'Copiar para IA'}
+          </button>
+
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost text-danger"
+            onClick={onClearRoom}
+            title="Borrar puestos y kills de esta sala"
+          >
+            Limpiar sala
+          </button>
+        </div>
+      </div>
+
+      {duplicatePlaces.size > 0 && (
+        <div className="tb-warn-banner">
+          <b>Atención:</b> Hay puestos repetidos en esta sala ({[...duplicatePlaces].sort((a, b) => a - b).map((p) => `${p}°`).join(', ')}). Corrige los números antes de guardar.
+        </div>
+      )}
+
+      {/* Tabla de equipos con sus integrantes y casillas de entrada */}
+      <div className="table-wrap">
+        <table className="tb-table-v2">
+          <thead>
+            <tr>
+              <th style={{ width: 64 }}>Slot</th>
+              <th>Equipo e Integrantes (Nicknames de la sala)</th>
+              <th style={{ width: 110, textAlign: 'center' }} title="Puesto de supervivencia en el mapa (1.º al 12.º)">
+                Puesto
+              </th>
+              <th style={{ width: 100, textAlign: 'center' }} title="Bajas conseguidas por la escuadra">
+                Kills
+              </th>
+              <th style={{ width: 110, textAlign: 'right' }} title="Puntos totales calculados automáticamente">
+                Pts
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayTeams.map((t) => {
+              const matched = isMatch(t, query)
+              const rawPlace = placements[t.id]
+              const place = rawPlace !== '' && rawPlace !== null && rawPlace !== undefined ? Number(rawPlace) : null
+              const k = Number(kills[t.id]) || 0
+              const isDupe = place && duplicatePlaces.has(place)
+              const isBooyah = place === 1
+
+              const hasValidPlace = place && place >= 1 && place <= 12
+              const posPts = hasValidPlace ? (posTable[place - 1] ?? 0) : 0
+              const totalPts = hasValidPlace ? pointsOf(place, k) : null
+
+              return (
+                <tr
+                  key={t.id}
+                  className={`tb-row ${query && matched ? 'tb-row--highlight' : ''} ${query && !matched ? 'tb-row--dim' : ''} ${isBooyah ? 'tb-row--booyah' : ''}`}
+                >
+                  <td>
+                    <span className={`slot-chip ${isBooyah ? 'slot-chip--gold' : ''}`}>
+                      #{t.slot ?? '·'}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="tb-team-info">
+                      <strong className="tb-team-name">{t.name}</strong>
+                      <div className="tb-nicks" title="Integrantes registrados de la escuadra">
+                        {t.players && t.players.length > 0 ? (
+                          t.players.map((p, idx) => (
+                            <span
+                              key={p.game_player_id || idx}
+                              className={`nick-chip ${p.is_substitute ? 'nick-chip--sub' : ''}`}
+                              title={p.game_player_id ? `ID: ${p.game_player_id}${p.is_substitute ? ' (Suplente)' : ''}` : (p.is_substitute ? 'Suplente' : undefined)}
+                            >
+                              {p.nickname}
+                              {p.is_substitute && <span className="nick-chip-subtag"> (S)</span>}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="nick-chip nick-chip--empty">Sin jugadores registrados</span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <div className="tb-input-wrap">
+                      <input
+                        type="number"
+                        min="1"
+                        max="12"
+                        step="1"
+                        inputMode="numeric"
+                        className={`tb-input tb-input--place ${isDupe ? 'tb-input--dupe' : ''} ${isBooyah ? 'tb-input--booyah' : ''}`}
+                        value={rawPlace ?? ''}
+                        placeholder="—"
+                        onChange={(e) => onPlacement(t.id, e.target.value)}
+                        title={isDupe ? '¡Puesto repetido con otro equipo!' : 'Puesto del 1 al 12'}
+                      />
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <div className="tb-input-wrap">
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        step="1"
+                        inputMode="numeric"
+                        className="tb-input tb-input--kills"
+                        value={kills[t.id] ?? 0}
+                        onChange={(e) => onKills(t.id, e.target.value)}
+                        title="Kills (bajas de la escuadra)"
+                      />
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    {hasValidPlace ? (
+                      <div className="tb-pts-box">
+                        <strong className={`tb-pts-total ${isBooyah ? 'tb-pts-total--gold' : ''}`}>
+                          {totalPts}
+                        </strong>
+                        <small className="tb-pts-split" title={`${posPts} pts de posición + ${k * killPts} por kills`}>
+                          {posPts} + {k * killPts}
+                        </small>
+                      </div>
+                    ) : (
+                      <span className="tb-pts-empty">—</span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

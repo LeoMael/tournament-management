@@ -2,11 +2,30 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useToast } from '../context/ToastContext'
 import { ErrorBox, Modal, PageHeader, Spinner, StatusBadge } from '../components/ui'
-import { GAME_LABEL } from '../lib/format'
+import { GAME_LABEL, money } from '../lib/format'
 import { publicUrl } from '../lib/storage'
 import { computeStandings, teamPhases } from '../lib/standings'
 import { resolveSlots } from '../lib/bracket'
 import { roomOfStage } from '../lib/rooms'
+
+async function downloadTeamLogo(url, teamName) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    const safeName = teamName.toLowerCase().replace(/[^a-z0-9_-]/gi, '_')
+    const ext = url.split('.').pop().split('?')[0] || 'png'
+    a.download = `logo_${safeName}.${ext}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(blobUrl)
+  } catch {
+    window.open(url, '_blank')
+  }
+}
 
 function WithdrawModal({ team, onClose, onDone }) {
   const toast = useToast()
@@ -47,6 +66,82 @@ function WithdrawModal({ team, onClose, onDone }) {
   )
 }
 
+function PodioSection({ top3, prizes, game }) {
+  if (!top3 || top3.length === 0) return null
+  const hasResults = top3.some((r) => r.points > 0 || r.wins > 0 || r.played > 0)
+  if (!hasResults) return null
+
+  const prizesMap = new Map((prizes || []).map((p) => [p.place, p]))
+  const rankLabels = {
+    1: { title: '1.º Lugar · Campeón', cls: 'podio-card--1' },
+    2: { title: '2.º Lugar · Subcampeón', cls: 'podio-card--2' },
+    3: { title: '3.º Lugar · Tercer Puesto', cls: 'podio-card--3' },
+  }
+
+  return (
+    <section className="card podio-box">
+      <div className="podio-head">
+        <h2>Podio de Ganadores — Top 3</h2>
+        <p className="card-sub">Equipos en puestos premiados con opción de descargar sus logos en alta resolución para publicaciones.</p>
+      </div>
+      <div className="podio-grid">
+        {top3.map(({ team, rank, points, wins, kills }) => {
+          const badge = rankLabels[rank] || { title: `${rank}.º Lugar`, cls: '' }
+          const prize = prizesMap.get(rank)
+          const logoUrl = publicUrl('team-logos', team.logo_path)
+          const isUnap = team.institution === 'UNAP'
+          const instLabel = isUnap ? 'UNAP' : (team.other_institution?.trim() || 'Otra')
+
+          return (
+            <div key={team.id} className={`podio-card ${badge.cls}`}>
+              <div className="podio-card-head">
+                <span className="podio-rank-tag">{badge.title}</span>
+                {prize && <span className="podio-prize-tag">{money(prize.amount)}</span>}
+              </div>
+
+              <div className="podio-card-body">
+                <div className="podio-avatar-wrap">
+                  {logoUrl ? (
+                    <img src={logoUrl} alt={team.team_name} className="podio-logo" />
+                  ) : (
+                    <span className="podio-logo-placeholder">
+                      {team.team_name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="podio-info">
+                  <h3 className="podio-team-name">{team.team_name}</h3>
+                  <p className="podio-inst">
+                    <span className={`live-inst-tag ${isUnap ? 'live-inst-tag--unap' : ''}`}>{instLabel}</span>
+                    {team.professional_school ? ` · ${team.professional_school}` : ''}
+                  </p>
+                  <p className="podio-stats">
+                    <strong>{points} pts</strong> · {wins} {game === 'ff' ? 'Booyahs' : 'Victorias'}{game === 'ff' ? ` · ${kills} kills` : ''}
+                  </p>
+                </div>
+              </div>
+
+              <div className="podio-card-actions">
+                {logoUrl ? (
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--primary podio-btn"
+                    onClick={() => downloadTeamLogo(logoUrl, team.team_name)}
+                  >
+                    Descargar logo
+                  </button>
+                ) : (
+                  <span className="podio-no-logo">Sin logo subido</span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export default function Teams() {
   const toast = useToast()
   const [data, setData] = useState(null)
@@ -58,16 +153,27 @@ export default function Teams() {
   const [openId, setOpenId] = useState(null) // equipo con los integrantes desplegados
 
   const load = useCallback(async () => {
-    const [regs, stages, matches, results, players] = await Promise.all([
+    const [regs, stages, matches, results, players, prizes] = await Promise.all([
       supabase.from('registrations').select('id, game_key, team_name, logo_path, status, withdrawal_reason, institution, other_institution, professional_school').in('status', ['approved', 'withdrawn']),
       supabase.from('stages').select('id, game_key, type, name, position, created_at, config'),
       supabase.from('matches').select('id, stage_id, team_a, team_b, score_a, score_b, status, winner_id'),
       supabase.from('match_results').select('match_id, registration_id, placement, kills, points'),
       supabase.from('players').select('registration_id, slot, is_substitute, nickname, game_player_id, server_id').order('slot'),
+      supabase.from('prizes').select('place, label, amount, description').order('place'),
     ])
     const err = regs.error || stages.error || matches.error || results.error || players.error
     if (err) setError(err.message)
-    else { setData({ regs: regs.data, stages: stages.data, matches: matches.data, results: results.data, players: players.data }); setError(null) }
+    else {
+      setData({
+        regs: regs.data,
+        stages: stages.data,
+        matches: matches.data,
+        results: results.data,
+        players: players.data,
+        prizes: prizes.data ?? [],
+      })
+      setError(null)
+    }
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -104,6 +210,10 @@ export default function Teams() {
     return { mlbb: count('mlbb'), ff: count('ff') }
   }, [data])
 
+  const top3 = useMemo(() => {
+    return rows.filter((r) => r.rank && r.rank <= 3 && r.team.status !== 'withdrawn')
+  }, [rows])
+
   const reinstate = async (team) => {
     if (!window.confirm(`¿Reincorporar a "${team.team_name}" al torneo?`)) return
     setBusyId(team.id)
@@ -119,11 +229,11 @@ export default function Teams() {
   const active = rows.filter((r) => r.rank).length
   const isPlaying = (id) => ['playing', 'champion'].includes(phases.get(id)?.tone)
   const shown = onlyPlaying && stageCount > 1 ? rows.filter((r) => r.team.status !== 'withdrawn' && isPlaying(r.team.id)) : rows
-  const maxPoints = Math.max(0, ...rows.map((r) => r.points))
   const leader = rows[0]?.rank && rows[0].points > 0 ? rows[0] : null
   const isBr = data.stages.some((s) => s.game_key === game && s.type === 'battle_royale')
   const slotCols = placing ? (placing.rooms > 1 ? 2 : 1) : 0
   const colCount = 3 + slotCols + (stageCount > 0 ? 1 : 0) + 2 + (isBr ? 1 : 2) + 3
+
   return (
     <>
       <PageHeader eyebrow="Torneo" title="Equipos y puntos" subtitle={`${active} equipos aprobados en competencia${rows.length > active ? ` · ${rows.length - active} retirados` : ''}.`} />
@@ -132,6 +242,9 @@ export default function Teams() {
         <div className="stat"><small>Retirados</small><strong>{rows.length - active}</strong><em>fuera del torneo</em></div>
         <div className="stat stat--ok"><small>Líder</small><strong style={{ fontSize: 20 }}>{leader ? leader.team.team_name : '—'}</strong><em>{leader ? `${leader.points} puntos` : 'Aún sin resultados'}</em></div>
       </div>
+
+      <PodioSection top3={top3} prizes={data.prizes} game={game} />
+
       <div className="filter-bar">
         <div className="seg" role="group" aria-label="Juego">
           {['mlbb', 'ff'].map((key) => (
@@ -171,32 +284,33 @@ export default function Teams() {
               return (
                 <Fragment key={team.id}>
                 <tr className={out ? 'row--withdrawn' : undefined}>
-                  <td className="num"><span className={`rank ${rank && rank <= 3 && points > 0 ? 'rank--top' : ''}`}>{rank ?? '—'}</span></td>
-                  <td>{logo ? <img src={logo} alt="" className="logo-thumb" loading="lazy" /> : <div className="logo-thumb logo-thumb--empty" aria-hidden="true">{team.team_name[0]}</div>}</td>
+                  <td className="num">{rank ? <b>{rank}</b> : '—'}</td>
+                  <td><span className={`dot ${open ? 'dot--on' : ''}`} /></td>
                   <td>
-                    <div className="team-cell">
-                      <span className="team-name">{team.team_name}</span>
-                      <button type="button" className="members-toggle" aria-expanded={open} onClick={() => setOpenId(open ? null : team.id)}>
-                        Integrantes ({members.length}) {open ? '▾' : '▸'}
-                      </button>
-                      {out && team.withdrawal_reason && <span className="obs-line" title={team.withdrawal_reason}>{team.withdrawal_reason}</span>}
+                    <div className="team-cell team-cell--inline">
+                      {logo && <img src={logo} alt="" className="table-logo" loading="lazy" />}
+                      <strong className="team-name">{team.team_name}</strong>
+                      {team.status === 'withdrawn' && <span className="badge badge--withdrawn">Retirado</span>}
                     </div>
                   </td>
                   {placing?.rooms > 1 && <td>{inRoom ? <span className="slot-chip">Sala {placing.roomOf(team.id)}</span> : '—'}</td>}
                   {placing && <td>{inRoom ? <span className="slot-chip" title="Lugar fijo en la sala">{placing.slots[team.id]}</span> : '—'}</td>}
-                  {stageCount > 0 && <td>{phases.get(team.id) ? <span className={`badge badge--phase-${phases.get(team.id).tone}`}>{phases.get(team.id).label}</span> : '—'}</td>}
+                  {stageCount > 0 && <td><StatusBadge status={phases.get(team.id)?.tone ?? 'pending'}>{phases.get(team.id)?.label ?? '—'}</StatusBadge></td>}
                   <td className="num">{played}</td>
-                  <td className="num">{wins}</td>
+                  <td className="num"><b>{wins}</b></td>
                   {!isBr && <td className="num">{losses}</td>}
                   {!isBr && <td className="num">{diff > 0 ? `+${diff}` : diff}</td>}
                   {isBr && <td className="num">{kills}</td>}
-                  <td className="num"><span className="pts"><b>{points}</b><span className="pts-bar" aria-hidden="true"><i style={{ width: `${maxPoints ? (points / maxPoints) * 100 : 0}%` }} /></span></span></td>
+                  <td className="num"><strong>{points}</strong></td>
                   <td><StatusBadge status={team.status} /></td>
                   <td>
-                    <div className="row-actions row-actions--end">
-                      {out
-                        ? <button className="btn btn--sm" type="button" disabled={busyId === team.id} onClick={() => reinstate(team)}>Reincorporar</button>
-                        : <button className="btn btn--sm btn--bad" type="button" onClick={() => setWithdrawing(team)}>Retirar</button>}
+                    <div className="row-actions">
+                      <button className="members-toggle" onClick={() => setOpenId(open ? null : team.id)} type="button">{open ? 'Ocultar' : `Integrantes (${members.length})`}</button>
+                      {out ? (
+                        <button className="btn btn--sm" disabled={busyId === team.id} onClick={() => reinstate(team)} type="button">Reincorporar</button>
+                      ) : (
+                        <button className="btn btn--sm btn--ghost" onClick={() => setWithdrawing(team)} type="button">Retirar</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -204,12 +318,24 @@ export default function Teams() {
                   <tr className="row-detail">
                     <td colSpan={colCount}>
                       <div className="roster">
-                        <p className="roster-meta">
-                          {team.institution === 'UNAP' ? 'UNAP' : team.other_institution || 'Otra institución'}
-                          {team.professional_school ? ` · ${team.professional_school}` : ''}
-                          {placing?.rooms > 1 && inRoom ? ` · Sala ${placing.roomOf(team.id)}` : ''}
-                          {placing && inRoom ? ` · Lugar en la sala: ${placing.slots[team.id]}` : ''}
-                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                          <p className="roster-meta" style={{ margin: 0 }}>
+                            {team.institution === 'UNAP' ? 'UNAP' : team.other_institution || 'Otra institución'}
+                            {team.professional_school ? ` · ${team.professional_school}` : ''}
+                            {placing?.rooms > 1 && inRoom ? ` · Sala ${placing.roomOf(team.id)}` : ''}
+                            {placing && inRoom ? ` · Lugar en la sala: ${placing.slots[team.id]}` : ''}
+                          </p>
+                          {logo && (
+                            <button
+                              type="button"
+                              className="btn btn--sm btn--ghost"
+                              onClick={() => downloadTeamLogo(logo, team.team_name)}
+                              title="Descargar archivo original del logo"
+                            >
+                              Descargar logo
+                            </button>
+                          )}
+                        </div>
                         {members.length === 0 ? <p className="hint">Sin integrantes registrados.</p> : (
                           <ul className="roster-list">
                             {members.map((p) => (
