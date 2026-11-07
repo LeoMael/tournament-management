@@ -12,3 +12,5 @@ export function groupReady(group, members, starters) {
 }
 
 export const REVIEW_TRANSITIONS = { pending: ['approved', 'rejected', 'refund_pending'], approved: ['rejected', 'refund_pending'], rejected: ['refund_pending'], refund_pending: ['refunded'] }
+
+export const canDeleteIndividual = (person, isAdmin) => Boolean(isAdmin && person && ['rejected', 'refunded'].includes(person.status) && !person.group_id)

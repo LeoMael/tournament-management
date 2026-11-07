@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { groupReady, validGroupUrl, validTeamName, REVIEW_TRANSITIONS } from '../src/lib/individuals.js'
+import { groupReady, validGroupUrl, validTeamName, REVIEW_TRANSITIONS, canDeleteIndividual } from '../src/lib/individuals.js'
 const roles = ['exp', 'jungle', 'mid', 'gold', 'roam']
 const players = roles.map((assigned_role, i) => ({ id: String(i), assigned_role }))
 const group = { game_key: 'mlbb', status: 'draft', captain_id: '0', whatsapp_group_url: 'https://chat.whatsapp.com/abcdefghij' }
@@ -34,4 +34,16 @@ test('solo permite transiciones de revisión válidas', () => {
   assert.deepEqual(REVIEW_TRANSITIONS.rejected, ['refund_pending'])
   assert.deepEqual(REVIEW_TRANSITIONS.refund_pending, ['refunded'])
   for (const status of ['grouped', 'registered', 'refunded']) assert.equal(REVIEW_TRANSITIONS[status], undefined)
+})
+
+test('solo admin elimina solicitudes rechazadas o reembolsadas sin grupo', () => {
+  for (const status of ['rejected', 'refunded']) {
+    assert.equal(canDeleteIndividual({ status, group_id: null }, true), true)
+    assert.equal(canDeleteIndividual({ status, group_id: null }, false), false)
+    assert.equal(canDeleteIndividual({ status, group_id: 'group' }, true), false)
+  }
+  for (const status of ['pending', 'approved', 'grouped', 'registered', 'refund_pending', 'unknown']) {
+    assert.equal(canDeleteIndividual({ status, group_id: null }, true), false)
+  }
+  assert.equal(canDeleteIndividual(null, true), false)
 })
