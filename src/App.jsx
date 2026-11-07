@@ -6,6 +6,7 @@ import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import RoleRoute from './components/RoleRoute'
 import Login from './pages/Login'
+import Individuals from './pages/Individuals'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
 import Registrations from './pages/Registrations'
@@ -39,6 +40,7 @@ export default function App() {
               <Route element={<Layout />}>
                 <Route element={<RoleRoute />}>
                   <Route index element={<Dashboard />} />
+                  <Route path="individuales" element={<Individuals />} />
                   <Route path="inscripciones" element={<Registrations />} />
                   <Route path="formato" element={<Format />} />
                   <Route path="equipos" element={<Teams />} />

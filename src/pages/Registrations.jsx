@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
@@ -51,14 +52,15 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
   const [savedNote, setSavedNote] = useState(reg.observation ?? '')
   const [imgBroken, setImgBroken] = useState(false)
   const [edit, setEdit] = useState({ team_name: reg.team_name, captain_name: reg.captain_name, captain_whatsapp: reg.captain_whatsapp })
-  const isPdf = reg.receipt_path.endsWith('.pdf')
+  const isPdf = reg.receipt_path?.endsWith('.pdf')
+  const individualPayments = reg.registration_origin === 'individual'
   const logo = publicUrl('team-logos', reg.logo_path)
 
   useEffect(() => {
     let active = true
     supabase.from('players').select('*').eq('registration_id', reg.id).order('slot')
       .then(({ data }) => active && setPlayers(data ?? []))
-    signedReceiptUrl(reg.receipt_path)
+    if (reg.receipt_path) signedReceiptUrl(reg.receipt_path)
       .then((url) => active && setReceipt({ url, error: null }))
       .catch((e) => active && setReceipt({ url: null, error: e.message }))
     return () => { active = false }
@@ -127,8 +129,8 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
         {rejecting && <button className="btn btn--bad" disabled={busy || reason.trim().length < 3} onClick={() => setStatus('rejected', reason.trim())} type="button">Confirmar rechazo</button>}
         {rejecting && <button className="btn" onClick={() => setRejecting(false)} type="button">Cancelar</button>}
         {reg.status !== 'pending' && !rejecting && <button className="btn" disabled={busy} onClick={() => setStatus('pending')} type="button">Volver a pendiente</button>}
-        {!editing && !rejecting && <button className="btn" onClick={() => setEditing(true)} type="button">Editar datos</button>}
-        {isAdmin && <button className="btn btn--ghost" disabled={busy} onClick={remove} type="button" style={{ marginLeft: 'auto' }}>Eliminar</button>}
+        {!individualPayments && !editing && !rejecting && <button className="btn" onClick={() => setEditing(true)} type="button">Editar datos</button>}
+        {isAdmin && !individualPayments && <button className="btn btn--ghost" disabled={busy} onClick={remove} type="button" style={{ marginLeft: 'auto' }}>Eliminar</button>}
       </div>
     </>
   )
@@ -181,7 +183,7 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
 
       <div>
         <h3>Comprobante de pago</h3>
-        {!receipt.url && !receipt.error && <Spinner />}
+        {individualPayments ? <p>Pagos individuales. <Link to="/individuales">Gestionar inscripciones individuales</Link></p> : !reg.receipt_path ? <p>Sin comprobante.</p> : !receipt.url && !receipt.error && <Spinner />}
         {receipt.url && !imgBroken && (isPdf
           ? <iframe className="receipt-frame" title="Comprobante PDF" src={receipt.url} sandbox="" />
           : <img className="receipt" src={receipt.url} alt="Comprobante de pago" onError={() => setImgBroken(true)} />)}

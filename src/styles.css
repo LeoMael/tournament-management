@@ -830,3 +830,11 @@ button.rb-btn[aria-pressed="true"] { background: var(--accent-soft); border-colo
 .podio-card-actions { display: flex; align-items: center; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 10px; }
 .podio-btn { width: 100%; justify-content: center; }
 .podio-no-logo { font-size: 11.5px; color: var(--muted); font-style: italic; width: 100%; text-align: center; }
+
+/* Resumen y detalle de inscripciones individuales. */
+.individual-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px; }
+.individual-stats .stat { padding: 14px 16px; }
+.individual-stats .stat strong { font-size: 25px; }
+.individual-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 900px) { .individual-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 580px) { .individual-detail-grid { grid-template-columns: 1fr; } }
