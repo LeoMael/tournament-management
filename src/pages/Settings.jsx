@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import MigrationHistory from '../components/MigrationHistory'
+import { migrationStatus } from '../lib/migrations'
+import PrizesCard from '../components/PrizesCard'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useToast } from '../context/ToastContext'
 import { ErrorBox, PageHeader, Spinner } from '../components/ui'
@@ -156,56 +159,26 @@ function GameCard({ game, onSaved }) {
   )
 }
 
-function PrizesCard({ prizes, onSaved }) {
-  const toast = useToast()
-  const [rows, setRows] = useState(() => prizes.map((p) => ({ ...p, amount: String(p.amount) })))
-  const [busy, setBusy] = useState(false)
-  const setRow = (place, k, v) => setRows((rs) => rs.map((r) => (r.place === place ? { ...r, [k]: v } : r)))
-  const total = rows.reduce((acc, r) => acc + (Number(r.amount) || 0), 0)
-
-  const save = async (e) => {
-    e.preventDefault()
-    for (const r of rows) {
-      const amount = Number(r.amount)
-      if (!r.label.trim() || !(amount >= 0 && amount <= 1000000)) return toast.error(`Premio ${r.place}: datos inválidos.`)
-    }
-    setBusy(true)
-    const results = await Promise.all(rows.map((r) =>
-      supabase.from('prizes').update({
-        label: r.label.trim(), amount: Number(r.amount), description: r.description.trim(), updated_at: new Date().toISOString(),
-      }).eq('place', r.place)))
-    setBusy(false)
-    const failed = results.find((r) => r.error)
-    if (failed) return toast.error(failed.error.message)
-    toast.success('Premios guardados.')
-    onSaved()
-  }
-
-  return (
-    <form className="card" onSubmit={save}>
-      <h2>Premios · Bolsa total {money(total)}</h2>
-      {rows.map((r) => (
-        <div className="form-row" key={r.place}>
-          <label className="field"><span>Puesto {r.place}</span>
-            <input value={r.label} maxLength={40} onChange={(e) => setRow(r.place, 'label', e.target.value)} />
-          </label>
-          <label className="field"><span>Monto (S/)</span>
-            <input type="number" min="0" step="10" value={r.amount} onChange={(e) => setRow(r.place, 'amount', e.target.value)} />
-          </label>
-          <label className="field"><span>Descripción</span>
-            <input value={r.description} maxLength={120} onChange={(e) => setRow(r.place, 'description', e.target.value)} />
-          </label>
-        </div>
-      ))}
-      <button className="btn btn--primary" disabled={busy} type="submit">{busy ? 'Guardando…' : 'Guardar premios'}</button>
-    </form>
-  )
-}
-
 export default function Settings() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [version, setVersion] = useState(0)
+  const [migration, setMigration] = useState({ state: 'loading', hasPrizes: false, rows: [] })
+  const [migrationLoading, setMigrationLoading] = useState(false)
+  const refreshMigration = useCallback(async () => {
+    setMigrationLoading(true)
+    try {
+      const { data: rows, error: err } = await supabase.from('schema_migrations').select('version, description, applied_at')
+      const status = migrationStatus(rows, err)
+      setMigration(status)
+      return status
+    } catch (err) {
+      setMigration(migrationStatus(null, err))
+    } finally {
+      setMigrationLoading(false)
+    }
+  }, [])
+  useEffect(() => { refreshMigration() }, [refreshMigration])
 
   useEffect(() => {
     let active = true
@@ -213,16 +186,27 @@ export default function Settings() {
       const [s, g, p] = await Promise.all([
         supabase.from('tournament_settings').select('*').eq('id', 1).single(),
         supabase.from('games').select('*').order('key'),
-        supabase.from('prizes').select('*').order('place'),
+        supabase.from('prizes').select('id, game_key, place, label, amount, description, is_announced').order('place'),
       ])
       if (!active) return
-      const err = s.error || g.error || p.error
+      const err = s.error || g.error
       if (err) setError(err.message)
-      else setData({ settings: s.data, games: g.data, prizes: p.data })
+      else setData({ settings: s.data, games: g.data, prizes: p.data, prizesError: p.error })
     })()
     return () => { active = false }
   }, [version])
 
+  const refreshVersionAndPrizes = async () => {
+    const status = await refreshMigration()
+    if (status?.hasPrizes && data?.prizesError) {
+      try {
+        const { data: prizes, error: prizesError } = await supabase.from('prizes').select('id, game_key, place, label, amount, description, is_announced').order('place')
+        setData((current) => current?.prizesError ? { ...current, prizes, prizesError } : current)
+      } catch (prizesError) {
+        setData((current) => current?.prizesError ? { ...current, prizesError } : current)
+      }
+    }
+  }
   const reload = () => setVersion((v) => v + 1)
   if (error) return <ErrorBox error={error} />
   if (!data) return <Spinner />
@@ -232,11 +216,13 @@ export default function Settings() {
     <>
       <PageHeader eyebrow="Sistema" title="Configuración" subtitle="Precios, premios, cupos, fecha de cierre, datos de pago y bases. Los cambios se reflejan en el sitio público." />
       <div className="grid" style={{ gap: '1rem' }}>
+        <MigrationHistory status={migration} loading={migrationLoading} onRefresh={refreshVersionAndPrizes} />
         <GeneralCard key={`g-${version}`} initial={data.settings} onSaved={reload} />
         <div className="grid grid--2">
           {data.games.map((g) => <GameCard key={`${g.key}-${version}`} game={g} onSaved={reload} />)}
         </div>
-        <PrizesCard key={`p-${version}`} prizes={data.prizes} onSaved={reload} />
+        {!migration.hasPrizes ? <div className="card"><h2>Premios</h2><p>La migración 001 debe estar registrada para editar premios. Consulta el historial de versiones.</p></div> : data.prizesError ? <div className="card"><h2>Premios</h2><p>No se pueden cargar los premios por juego. Verifica que se haya aplicado la migración de premios y vuelve a intentarlo. No se guardaron cambios de premios.</p></div> : data.games.map((game) => <PrizesCard key={`${game.key}-${version}`} game={game} prizes={data.prizes.filter((p) => p.game_key === game.key)} onSaved={() => {}} />)}
+        {data.prizes?.some((p) => p.game_key === null) && <section className="card"><h2>Premios anteriores</h2><p>Estos valores se conservan sin asignar. Ingresa manualmente los premios correspondientes en cada juego.</p>{data.prizes.filter((p) => p.game_key === null).map((p) => <p key={p.id}>Puesto {p.place} · {p.label} · {money(p.amount)}{p.description ? ` · ${p.description}` : ''}</p>)}</section>}
       </div>
     </>
   )

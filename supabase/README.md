@@ -18,6 +18,7 @@ Pensado para desarrollo: pocos archivos, todos en el SQL Editor y en este orden.
 4. **Authentication → Users → Add user** (email + contraseña fuerte, Auto confirm). Solo para el primer admin.
 5. Ejecuta `03_admin.sql` con tu correo.
 5b. Despliega la función `manage-team` (sección siguiente) para gestionar el equipo desde el panel.
+5c. Ejecuta en orden `migrations/001_prizes_by_game.sql` y `migrations/002_schema_migrations.sql`.
 6. **Project Settings → API**: copia la URL y la clave pública (`anon` o `publishable`) a los `.env` de
    `admin-panel/` y `esports-tournament-manager/`. **Nunca** uses la `service_role`.
 
@@ -38,7 +39,7 @@ La función solo responde a usuarios con rol `admin`, no permite quitar al últi
 | `revisor_arbitro` | **Inscripciones** (aprobar, rechazar, editar) y **Grupos y llaves** (sorteo, resultados, publicar). |
 
 Sin la función, también se puede cambiar un rol por SQL: `update public.admins set role = 'editor' where email = 'correo@dominio.com';`
-`01_schema.sql` es repetible: en una base ya creada, volver a ejecutarlo agrega la columna `role` (los admins existentes quedan como `admin`) y actualiza las políticas, sin borrar datos.
+No vuelvas a ejecutar `01_schema.sql` ni `00_reset.sql` sobre una base existente: contienen operaciones que pueden eliminar o alterar datos y políticas. Usa únicamente migraciones independientes revisadas.
 
 ## Empezar de cero otra vez
 `00_reset.sql` → `01_schema.sql` → `02_seed.sql` (no hace falta repetir `03_admin.sql`).
@@ -51,3 +52,11 @@ Sin la función, también se puede cambiar un rol por SQL: `update public.admins
 - `public_availability` y `public_teams` exponen solo conteos y equipos aprobados, sin datos personales.
 - No hay límite por IP: si esperas tráfico malicioso, usa Cloudflare (Turnstile o rate limit) delante del sitio.
 - Archivos subidos que no terminan en una inscripción quedan huérfanos en Storage; límpialos de vez en cuando.
+
+## Migraciones de premios e historial
+
+Para una base existente, revisa y aplica manualmente desde SQL Editor, en orden: `migrations/001_prizes_by_game.sql`, luego `migrations/002_schema_migrations.sql`. No vuelvas a ejecutar el esquema global ni el reset. Para una instalación nueva, aplica primero los archivos originales `01_schema.sql`, `02_seed.sql` y `03_admin.sql`, y luego ambas migraciones en ese orden.
+
+La migración 001 conserva los premios anteriores con `game_key` nulo, pendientes de asignación manual; crea tres premios por juego con monto cero y estado por anunciar, sin sobrescribir premios existentes. La política RLS permite lectura pública solo de premios asociados a un juego y anunciados; los administradores pueden leer también borradores y legado. El panel muestra el legado solo para consulta.
+
+Si ya se aplicó la versión anterior `extras/prizes_by_game.sql`, puede omitirse 001 y aplicarse 002, que verifica sus requisitos antes de registrar versiones. Si la verificación falla, revisa el estado y aplica 001 antes de repetir 002. `public.schema_migrations` registra versión, descripción y fecha; solo administradores pueden leerlo desde la API y la escritura corresponde al propietario al aplicar SQL manualmente. La fecha registrada para 001 durante esta adopción es la fecha de verificación, no necesariamente la fecha de su aplicación original. Las migraciones posteriores deben registrar su propia versión en la misma transacción que sus cambios. El panel exige exactamente 001 para editar premios; una versión posterior no prueba que esté aplicada. El historial no acredita que se haya ejecutado el seed.
