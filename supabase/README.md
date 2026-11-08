@@ -18,7 +18,7 @@ Pensado para desarrollo: pocos archivos, todos en el SQL Editor y en este orden.
 4. **Authentication → Users → Add user** (email + contraseña fuerte, Auto confirm). Solo para el primer admin.
 5. Ejecuta `03_admin.sql` con tu correo.
 5b. Despliega la función `manage-team` (sección siguiente) para gestionar el equipo desde el panel.
-5c. Ejecuta las migraciones SQL `001` a `014` en orden numérico. Consulta sus guías antes de aplicarlas.
+5c. Ejecuta las migraciones SQL `001` a `015` en orden numérico. Consulta sus guías antes de aplicarlas.
 6. **Project Settings → API**: copia la URL y la clave pública (`anon` o `publishable`) a los `.env` de
    `admin-panel/` y `esports-tournament-manager/`. **Nunca** uses la `service_role`.
 
@@ -86,3 +86,7 @@ Aplicar `migrations/013_solo_registration_slots.sql` después de 012. Asigna un 
 ## Slots en la web pública (014)
 
 Aplicar `migrations/014_public_solo_slots.sql` después de 013. Añade el número de slot a `public_solo_results` para que aparezca en el portal público. Consulta la [guía de 014](migrations/014_public_solo_slots.md).
+
+## Eliminar salas finalizadas de prueba (015)
+
+Aplicar `migrations/015_delete_completed_solo_rooms.sql` después de 014. El administrador puede eliminar salas finalizadas o canceladas con sus inscripciones, resultados y registros de pago, confirmando el nombre exacto. Incluye pagos pendientes; no realiza transferencias ni devoluciones. Consulta la [guía de 015](migrations/015_delete_completed_solo_rooms.md).

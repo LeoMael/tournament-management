@@ -53,14 +53,15 @@ export default function Solo() {
     setBusy(true)
     try {
       const saved = action === 'delete'
-        ? await rpc('delete_empty_solo_room', { p_edition_id: data.settings.edition_id, p_room_id: extra.room_id })
+        ? await rpc('delete_solo_room', { p_edition_id: data.settings.edition_id, p_room_id: extra.room_id, p_confirmation: extra.confirmation })
         : await rpc('manage_solo', { p_action: action, p_data: { edition_id: data.settings.edition_id, room_id: room?.id, ...extra } })
       if (action === 'create') { setSelected(saved.id); setView('registrations'); setRoomFilter('all') }
       if (action === 'delete' && room?.id === extra.room_id) { setSelected(''); setQuery(''); setView('registrations') }
+      if (action === 'delete') setResultDrafts((drafts) => { const next = { ...drafts }; delete next[extra.room_id]; return next })
       toast.success(action === 'delete' ? 'Sala eliminada.' : 'Cambios guardados.'); setEditing(null); setDialog(null); await load()
     } catch (err) {
-      toast.error(action === 'delete' && err.message.includes('delete_empty_solo_room')
-        ? 'Para eliminar salas, aplica la migración 011 en Supabase y actualiza la página.'
+      toast.error(action === 'delete' && err.message.includes('delete_solo_room')
+        ? 'Para eliminar estas salas, aplica la migración 015 en Supabase y actualiza la página.'
         : err.message)
     } finally { setBusy(false) }
   }
@@ -115,6 +116,16 @@ export default function Solo() {
   const visiblePeople = pagePeople.slice(pageStart, pageStart + pagination.size)
   const visiblePayments = filteredPayments.slice(pageStart, pageStart + pagination.size)
   const badge = (status) => <span className={`tm-status tm-status--${status}`}>{SOLO_STATUS[status]}</span>
+  const confirmRoomDeletion = (targetRoom) => {
+    const registrations = data.registrations.filter((p) => p.room_id === targetRoom.id)
+    const ids = new Set(registrations.map((p) => p.id))
+    const roomPayments = data.payments.filter((p) => ids.has(p.registration_id))
+    const unpaid = roomPayments.filter((p) => !p.paid_at).reduce((sum, p) => sum + Number(p.amount), 0)
+    setDialog({ action: 'delete', title: 'Eliminar sala permanentemente', confirmName: targetRoom.name,
+      text: `Se eliminará «${targetRoom.name}» con ${registrations.length} inscripciones, ${data.results.filter((r) => r.room_id === targetRoom.id).length} resultados y ${roomPayments.length} registros de pago. Esta acción es permanente.`,
+      warning: unpaid > 0 ? `Incluye ${money(unpaid)} pendientes de pago o devolución. Eliminarlos no realiza ningún pago ni devolución.` : null,
+      extra: { room_id: targetRoom.id } })
+  }
   return <div className="tournament-admin solo-admin">
     <PageHeader eyebrow="Competición / Free Fire" title="Solo por kills" actions={<><button className="btn" disabled={busy} onClick={load}>Actualizar</button>{admin && <button className="btn btn--primary" disabled={busy} onClick={() => setEditing({})}>+ Nueva sala</button>}</>} />
     <ErrorBox error={error} />
@@ -132,12 +143,12 @@ export default function Solo() {
         <label className="field"><span>Estado</span><select disabled={busy} value={roomFilter} onChange={(e) => { setRoomFilter(e.target.value); setQuery('') }}><option value="all">Todas las salas</option>{['draft', 'open', 'closed', 'playing', 'finished', 'cancelled'].map((status) => <option key={status} value={status}>{SOLO_STATUS[status]}</option>)}</select></label>
         {roomOptions.map((r) => {
           const count = data.registrations.filter((p) => p.room_id === r.id && ['pending', 'approved'].includes(p.status)).length
-          const canDelete = admin && ['draft', 'cancelled'].includes(r.status)
-            && !data.registrations.some((p) => p.room_id === r.id)
-            && !data.results.some((result) => result.room_id === r.id)
+          const canDelete = admin && (['finished', 'cancelled'].includes(r.status)
+            || (r.status === 'draft' && !data.registrations.some((p) => p.room_id === r.id)
+              && !data.results.some((result) => result.room_id === r.id)))
           return <div className="tm-room-item" key={r.id}>
             <button type="button" disabled={busy} className={`tm-room-option ${canDelete ? 'tm-room-option--deletable' : ''} ${r.id === room?.id ? 'tm-room-option--active' : ''}`} aria-pressed={r.id === room?.id} onClick={() => { setSelected(r.id); setQuery('') }}><span className="tm-room-option__top"><strong>{r.name}</strong>{badge(r.status)}</span><small>{count ? `${count} jugadores` : 'Sin jugadores'}</small></button>
-            {canDelete && <button type="button" className="tm-room-delete" disabled={busy} aria-label={`Eliminar sala ${r.name}`} title="Eliminar sala" onClick={() => setDialog({ action: 'delete', title: 'Eliminar sala', text: `Eliminar sala: ${r.name}. Esta sala no tiene inscripciones. La eliminacion es permanente.`, extra: { room_id: r.id } })}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg></button>}
+            {canDelete && <button type="button" className="tm-room-delete" disabled={busy} aria-label={`Eliminar sala ${r.name}`} title="Eliminar sala" onClick={() => confirmRoomDeletion(r)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg></button>}
           </div>
         })}
         {!roomOptions.length && <p className="hint">{data.rooms.length ? 'Sin salas con este estado.' : 'Crea tu primera sala para empezar.'}</p>}
@@ -168,6 +179,6 @@ export default function Solo() {
       </div>
     </div>
     {editing && <RoomForm room={editing.id ? editing : null} busy={busy} onClose={() => !busy && setEditing(null)} onSave={(values) => act(editing.id ? 'edit' : 'create', { ...values, ...(editing.id ? { room_id: editing.id } : {}) })} />}
-    {dialog && <Modal title={dialog.title} onClose={() => !busy && setDialog(null)}><form onSubmit={(e) => { e.preventDefault(); act(dialog.action, { ...dialog.extra, ...Object.fromEntries(new FormData(e.currentTarget)) }) }}><p>{dialog.text || 'Confirma la operación para esta sala.'}</p>{dialogPayment && <div className="tm-payment-confirm"><PaymentRecipient person={dialogRecipient} /><p>Importe: <strong>{money(dialogPayment.amount)}</strong></p><p className="hint">Confirma el destinatario en Yape. Registra este pago solo cuando hayas realizado la transferencia.</p></div>}{dialog.reason && <label className="field">Motivo<input name="reason" required minLength={3} maxLength={500} /></label>}{dialog.reference && <label className="field">Referencia (opcional)<input name="reference" maxLength={300} /></label>}<div className="tm-actions">{dialog.action === 'delete' && <button type="button" className="btn" disabled={busy} onClick={() => setDialog(null)}>Volver</button>}<button className={`btn ${dialog.action === 'delete' ? 'tm-delete-confirm' : 'btn--primary'}`} disabled={busy}>{dialog.action === 'delete' ? (busy ? 'Eliminando…' : 'Eliminar sala') : 'Confirmar'}</button></div></form></Modal>}
+    {dialog && <Modal title={dialog.title} onClose={() => !busy && setDialog(null)}><form onSubmit={(e) => { e.preventDefault(); act(dialog.action, { ...dialog.extra, ...Object.fromEntries(new FormData(e.currentTarget)) }) }}><p>{dialog.text || 'Confirma la operación para esta sala.'}</p>{dialogPayment && <div className="tm-payment-confirm"><PaymentRecipient person={dialogRecipient} /><p>Importe: <strong>{money(dialogPayment.amount)}</strong></p><p className="hint">Confirma el destinatario en Yape. Registra este pago solo cuando hayas realizado la transferencia.</p></div>}{dialog.warning && <p className="tm-notice">{dialog.warning}</p>}{dialog.confirmName && <label className="field">Escribe el nombre exacto: <strong>{dialog.confirmName}</strong><input key={dialog.extra.room_id} name="confirmation" autoComplete="off" required disabled={busy} onChange={(e) => e.target.setCustomValidity(e.target.value === dialog.confirmName ? '' : 'El nombre debe coincidir exactamente.')} /></label>}{dialog.reason && <label className="field">Motivo<input name="reason" required minLength={3} maxLength={500} /></label>}{dialog.reference && <label className="field">Referencia (opcional)<input name="reference" maxLength={300} /></label>}<div className="tm-actions">{dialog.action === 'delete' && <button type="button" className="btn" disabled={busy} onClick={() => setDialog(null)}>Volver</button>}<button className={`btn ${dialog.action === 'delete' ? 'tm-delete-confirm' : 'btn--primary'}`} disabled={busy}>{dialog.action === 'delete' ? (busy ? 'Eliminando…' : 'Eliminar sala') : 'Confirmar'}</button></div></form></Modal>}
   </div>
 }
