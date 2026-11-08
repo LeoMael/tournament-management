@@ -9,6 +9,8 @@ export const ROLE_LABEL = {
 // Qué roles pueden entrar a cada sección.
 export const ACCESS = {
   '/': ['admin', 'revisor_arbitro'],
+  '/solo': ['admin', 'revisor_arbitro'],
+  '/torneos': ['admin'],
   '/individuales': ['admin', 'revisor_arbitro'],
   '/inscripciones': ['admin', 'revisor_arbitro'],
   '/formato': ['admin', 'revisor_arbitro'],

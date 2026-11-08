@@ -18,7 +18,7 @@ Pensado para desarrollo: pocos archivos, todos en el SQL Editor y en este orden.
 4. **Authentication → Users → Add user** (email + contraseña fuerte, Auto confirm). Solo para el primer admin.
 5. Ejecuta `03_admin.sql` con tu correo.
 5b. Despliega la función `manage-team` (sección siguiente) para gestionar el equipo desde el panel.
-5c. Ejecuta en orden `migrations/001_prizes_by_game.sql` y `migrations/002_schema_migrations.sql`.
+5c. Ejecuta las migraciones SQL `001` a `010` en orden numérico. Consulta sus guías antes de aplicarlas.
 6. **Project Settings → API**: copia la URL y la clave pública (`anon` o `publishable`) a los `.env` de
    `admin-panel/` y `esports-tournament-manager/`. **Nunca** uses la `service_role`.
 
@@ -60,3 +60,13 @@ Para una base existente, revisa y aplica manualmente desde SQL Editor, en orden:
 La migración 001 conserva los premios anteriores con `game_key` nulo, pendientes de asignación manual; crea tres premios por juego con monto cero y estado por anunciar, sin sobrescribir premios existentes. La política RLS permite lectura pública solo de premios asociados a un juego y anunciados; los administradores pueden leer también borradores y legado. El panel muestra el legado solo para consulta.
 
 Si ya se aplicó la versión anterior `extras/prizes_by_game.sql`, puede omitirse 001 y aplicarse 002, que verifica sus requisitos antes de registrar versiones. Si la verificación falla, revisa el estado y aplica 001 antes de repetir 002. `public.schema_migrations` registra versión, descripción y fecha; solo administradores pueden leerlo desde la API y la escritura corresponde al propietario al aplicar SQL manualmente. La fecha registrada para 001 durante esta adopción es la fecha de verificación, no necesariamente la fecha de su aplicación original. Las migraciones posteriores deben registrar su propia versión en la misma transacción que sus cambios. El panel exige exactamente 001 para editar premios; una versión posterior no prueba que esté aplicada. El historial no acredita que se haya ejecutado el seed.
+
+## Historial y Free Fire Solo (007–009)
+
+Después de aplicar 001–006, aplicar una sola vez `007_tournament_editions.sql`, `008_free_fire_solo.sql` y `009_tournament_archive.sql`, en ese orden. Publicar después ambos frontends: los clientes anteriores a 007 deben recargarse para enviar inscripciones.
+
+La guía [Ediciones, historial y Solo](migrations/007_009_tournament_modules.md) describe compatibilidad, cierre, pagos, permisos y pruebas locales aisladas. El cierre operativo se realiza desde Configuración; no utilizar el reset global.
+
+## Solo sin ID y formulario actualizado (010)
+
+Aplicar después de 009 `migrations/010_solo_nickname_registration.sql` antes de publicar el formulario nuevo. La [guía de 010](migrations/010_solo_nickname_registration.md) explica compatibilidad y validación por nickname. Universidad y carrera siguen siendo opcionales.

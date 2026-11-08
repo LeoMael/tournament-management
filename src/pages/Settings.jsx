@@ -1,3 +1,4 @@
+import EditionSettings from '../components/EditionSettings'
 import PrizeSettings from '../components/PrizeSettings'
 import MigrationHistory from '../components/MigrationHistory'
 import { migrationStatus } from '../lib/migrations'
@@ -12,6 +13,7 @@ function GeneralCard({ initial, onSaved }) {
   const toast = useToast()
   const [form, setForm] = useState({
     registration_open: initial.registration_open,
+    solo_enabled: initial.solo_enabled ?? false,
     deadline: toLocalInput(initial.registration_deadline),
     yape_number: initial.yape_number,
     yape_holder: initial.yape_holder,
@@ -35,6 +37,7 @@ function GeneralCard({ initial, onSaved }) {
       if (qrFile) qrPath = await uploadFile('public-assets', qrFile)
       const { error } = await supabase.from('tournament_settings').update({
         registration_open: form.registration_open,
+        ...(initial.solo_enabled !== undefined ? { solo_enabled: form.solo_enabled } : {}),
         registration_deadline: new Date(form.deadline).toISOString(),
         yape_number: form.yape_number.trim(),
         yape_holder: form.yape_holder.trim(),
@@ -42,7 +45,7 @@ function GeneralCard({ initial, onSaved }) {
         whatsapp_group_url: group || null,
         yape_qr_path: qrPath,
         updated_at: new Date().toISOString(),
-      }).eq('id', 1)
+      }).eq('id', 1).eq('updated_at', initial.updated_at).select('id').single()
       if (error) throw new Error(error.message)
       if (qrFile && initial.yape_qr_path) await removeFile('public-assets', initial.yape_qr_path)
       setQrFile(null)
@@ -63,6 +66,10 @@ function GeneralCard({ initial, onSaved }) {
         <input type="checkbox" checked={form.registration_open} onChange={(e) => set('registration_open', e.target.checked)} />
         Inscripciones abiertas (interruptor general)
       </label>
+      {initial.solo_enabled !== undefined && <label className="check" style={{ marginBottom: '.9rem' }}>
+        <input type="checkbox" checked={form.solo_enabled} onChange={(e) => set('solo_enabled', e.target.checked)} />
+        Habilitar Free Fire Solo por kills (independiente de escuadras)
+      </label>}
       <div className="form-row">
         <label className="field"><span>Cierre de inscripciones (hora local)</span>
           <input type="datetime-local" required value={form.deadline} onChange={(e) => set('deadline', e.target.value)} />
@@ -224,6 +231,7 @@ export default function Settings() {
       <PageHeader eyebrow="Sistema" title="Configuración" subtitle="Precios, premios, cupos, fecha de cierre, datos de pago y bases. Los cambios se reflejan en el sitio público." />
       <div className="grid" style={{ gap: '1rem' }}>
         <MigrationHistory status={migration} loading={migrationLoading} onRefresh={refreshVersionAndPrizes} />
+        <EditionSettings />
         <GeneralCard key={`g-${version}`} initial={data.settings} onSaved={reload} />
         <div className="grid grid--2">
           {data.games.map((g) => <GameCard key={`${g.key}-${version}`} game={g} onSaved={reload} />)}

@@ -76,7 +76,7 @@ function NewStageModal({ gameKey, teams, nextPosition, onClose, onCreated }) {
     let stageId = null
     try {
       const { data: stage, error } = await supabase.from('stages').insert({
-        game_key: gameKey, name, type: form.type, position: nextPosition, config,
+        edition_id: teams[0]?.edition_id, game_key: gameKey, name, type: form.type, position: nextPosition, config,
       }).select().single()
       if (error) throw new Error(error.message)
       stageId = stage.id
@@ -687,7 +687,7 @@ export default function Format() {
   const load = useCallback(async () => {
     const [s, t] = await Promise.all([
       supabase.from('stages').select('*').order('position').order('created_at'),
-      supabase.from('registrations').select('id, game_key, team_name, status'),
+      supabase.from('registrations').select('id, game_key, team_name, status, edition_id'),
     ])
     if (s.error || t.error) return setError((s.error || t.error).message)
     setStages(s.data)

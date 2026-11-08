@@ -37,7 +37,7 @@ export default function ContinueStageModal({ stage, groups, groupTeams, matches,
     try {
       const config = { best_of: roundBo[0], best_of_by_round: roundBo, source_stage: stage.id, qualify_per_group: perGroup }
       const { data, error } = await supabase.from('stages').insert({
-        game_key: stage.game_key, name: name.trim(), type: 'single_elim', position: nextPosition, config,
+        edition_id: stage.edition_id, game_key: stage.game_key, name: name.trim(), type: 'single_elim', position: nextPosition, config,
       }).select().single()
       if (error) throw new Error(error.message)
       stageId = data.id

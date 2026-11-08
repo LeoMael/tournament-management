@@ -55,7 +55,7 @@ export default function ContinueBrModal({ stage, totals, teamName, pending, next
         slot_of: resolveSlots(ids.map((id) => ({ id, team_name: teamName(id) })), (id) => roomOfNew[id] ?? 1, {}),
       }
       const { data, error } = await supabase.from('stages').insert({
-        game_key: stage.game_key, name: name.trim(), type: 'battle_royale', position: nextPosition, config,
+        edition_id: stage.edition_id, game_key: stage.game_key, name: name.trim(), type: 'battle_royale', position: nextPosition, config,
       }).select().single()
       if (error) throw new Error(error.message)
       stageId = data.id

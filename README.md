@@ -14,6 +14,8 @@ Panel de administración (React + Vite + Supabase) para el torneo RAGNAROK U-Ser
 - **Configuración**: precios, cupos, premios, fecha de cierre y datos/QR de Yape.
 - **Contenido del sitio**: PDF del reglamento por juego, secciones del reglamento, tabla de puntos y pasos de participación.
 - **Equipo** (solo admin): crear usuarios, cambiar roles y contraseñas, quitar accesos. Usa la Edge Function `manage-team` (ver `supabase/README.md`).
+- **Free Fire Solo**: salas con entrada, tarifa por kill y bono Booyah; revisión, resultados, ganancias y devoluciones manuales.
+- **Torneos anteriores**: consulta histórica y publicación opcional. Configuración permite archivar la edición completa y preparar la siguiente.
 - **Auditoría**: historial de cambios.
 
 ## Roles
@@ -24,3 +26,5 @@ Panel de administración (React + Vite + Supabase) para el torneo RAGNAROK U-Ser
 - Quien inicia sesión y no está en `admins` es expulsado al instante.
 - Cierre de sesión tras 30 min de inactividad; bloqueo de 1 min tras 5 intentos fallidos de login.
 - CSP estricta en el build (`vite.config.js`) y cabeceras en `public/_headers`.
+
+Para habilitar historial y Solo, aplicar las migraciones 007–009 siguiendo `supabase/migrations/007_009_tournament_modules.md`.

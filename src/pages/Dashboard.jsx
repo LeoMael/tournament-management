@@ -10,14 +10,15 @@ export default function Dashboard() {
   useEffect(() => {
     let active = true
     ;(async () => {
-      const [games, regs] = await Promise.all([
+      const [games, regs, finance] = await Promise.all([
         supabase.from('games').select('*').order('key'),
-        supabase.from('registrations').select('id, game_key, team_name, status, amount_due, created_at').order('created_at', { ascending: false }),
+        supabase.from('registrations').select('id, game_key, team_name, status, amount_due, created_at, registration_origin').order('created_at', { ascending: false }),
+        supabase.rpc('current_edition_finances'),
       ])
       if (!active) return
       const err = games.error || regs.error
       if (err) setError(err.message)
-      else setData({ games: games.data, regs: regs.data })
+      else setData({ games: games.data, regs: regs.data, finance: finance.error ? null : finance.data })
     })()
     return () => { active = false }
   }, [])
@@ -25,7 +26,7 @@ export default function Dashboard() {
   if (error) return <ErrorBox error={error} />
   if (!data) return <Spinner />
 
-  const { games, regs } = data
+  const { games, regs, finance } = data
   const sum = (list) => list.reduce((acc, r) => acc + Number(r.amount_due), 0)
   const approved = regs.filter((r) => r.status === 'approved')
   const pending = regs.filter((r) => r.status === 'pending')
@@ -34,11 +35,12 @@ export default function Dashboard() {
     <>
       <PageHeader eyebrow="Operación" title="Resumen" subtitle="Estado actual de inscripciones, recaudación y cupos." />
       <div className="grid grid--4" style={{ marginBottom: '1rem' }}>
-        <div className="stat stat--ok"><small>Recaudación confirmada</small><strong>{money(sum(approved))}</strong><em>{approved.length} equipos aprobados</em></div>
-        <div className="stat stat--warn"><small>Por verificar</small><strong>{money(sum(pending))}</strong><em>{pending.length} equipos pendientes</em></div>
+        <div className="stat stat--ok"><small>Recaudación confirmada</small><strong>{money(finance ? ['teams', 'individuals', 'solo'].reduce((n, key) => n + Number(finance[key].confirmed), 0) : sum(approved))}</strong><em>{finance ? 'Equipos + individuales + Solo' : `${approved.length} equipos aprobados`}</em></div>
+        <div className="stat stat--warn"><small>Por verificar</small><strong>{money(finance ? ['teams', 'individuals', 'solo'].reduce((n, key) => n + Number(finance[key].pending), 0) : sum(pending))}</strong><em>{finance ? 'Solicitudes pendientes de las tres modalidades' : `${pending.length} equipos pendientes`}</em></div>
         <div className="stat stat--accent"><small>Total inscripciones</small><strong>{regs.length}</strong><em>{regs.filter((r) => r.status === 'rejected').length} rechazadas</em></div>
       </div>
 
+      {finance && <section className="card" style={{ marginBottom: '1rem' }}><h2>Ingresos confirmados por modalidad</h2><div className="grid grid--4">{[['teams', 'Equipos'], ['individuals', 'Individuales para formar equipos'], ['solo', 'Free Fire Solo']].map(([key, label]) => <p key={key}>{label}<br /><strong>{money(finance[key].confirmed)}</strong></p>)}<p>Ganancias y devoluciones Solo pendientes<br /><strong>{money(finance.solo_due)}</strong></p></div><p className="hint">Los equipos formados con inscripciones individuales no se vuelven a sumar como ingresos de equipos.</p></section>}
       <div className="grid grid--2" style={{ marginBottom: '1rem' }}>
         {games.map((g) => {
           const mine = regs.filter((r) => r.game_key === g.key)
