@@ -19,8 +19,15 @@ try {
   `)
   const files = ['01_schema.sql', '02_seed.sql', ...fs.readdirSync(root + 'migrations').filter((x) => x.endsWith('.sql')).sort().map((x) => 'migrations/' + x)]
   for (const file of files) {
+    if (file === 'migrations/013_solo_registration_slots.sql') {
+      await db.exec(fs.readFileSync(root + 'tests/solo_slots_before_migration.sql', 'utf8'))
+    }
     // gen_random_uuid es nativo; estos escenarios no utilizan las otras funciones de pgcrypto.
     await db.exec(fs.readFileSync(root + file, 'utf8').replace('create extension if not exists pgcrypto;', ''))
+    if (file === 'migrations/013_solo_registration_slots.sql') {
+      await db.exec(fs.readFileSync(root + 'tests/solo_slots_after_migration.sql', 'utf8'))
+      console.log('PASS solo_slots_backfill')
+    }
     console.log('OK', file)
   }
   await db.exec(`
@@ -28,7 +35,7 @@ try {
     insert into admins(user_id,email,role) select id,email,case when email like 'reviewer%' then 'revisor_arbitro' when email like 'editor%' then 'editor' else 'admin' end from auth.users;
     set request.jwt.claim.sub='00000000-0000-0000-0000-000000000001';
   `)
-  for (const file of ['tournament_modules.sql', 'tournament_permissions.sql', 'tournament_archive_roster.sql', 'solo_cancellations.sql', 'solo_room_deletion.sql']) {
+  for (const file of ['tournament_modules.sql', 'tournament_permissions.sql', 'tournament_archive_roster.sql', 'solo_cancellations.sql', 'solo_room_deletion.sql', 'solo_bulk_results.sql', 'solo_slots.sql', 'public_solo_slots.sql']) {
     await db.exec(fs.readFileSync(root + 'tests/' + file, 'utf8'))
     console.log('PASS', file)
   }

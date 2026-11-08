@@ -27,6 +27,10 @@
 .tm-room-delete:hover, .tm-room-delete:focus-visible { color: var(--bad); border-color: var(--bad); background: var(--surface-3); }
 .tm-room-delete:disabled { opacity: .5; cursor: wait; }
 .tm-delete-confirm { color: var(--bad); border-color: var(--bad); }
+.tm-results-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.tm-results-toolbar > span { color: var(--muted); font-size: 13px; }
+.tm-result-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.tm-result-fields input[type="number"] { width: 90px; }
 .tm-room-option__top, .tm-room-option__foot { display: flex; justify-content: space-between; gap: 8px; }
 .tm-room-option__top strong { font-size: 14px; overflow-wrap: anywhere; }
 .tm-room-option > small, .tm-room-option__foot { font-size: 11px; color: var(--muted); }
@@ -55,6 +59,12 @@
 .tm-row-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .tm-payment-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--accent-soft); padding: 16px; border-radius: 10px; margin-bottom: 18px; color: var(--muted); font-size: 12px; }
 .tm-payment-summary strong { color: var(--accent); font-size: 22px; }
+.tm-payment-recipient { min-width: 190px; }
+.tm-payment-contact { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 10px 0; }
+.tm-payment-contact small { display: block; font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.tm-payment-number { font-family: var(--mono); font-size: 13px; user-select: all; }
+.tm-payment-confirm { padding: 16px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; margin: 16px 0; }
+.tm-payment-confirm > p { margin-bottom: 0; }
 .tm-tab-description { margin-bottom: 20px; font-size: 12px; color: var(--muted); }
 .tm-empty { text-align: center; padding: 36px 16px; color: var(--muted); }
 .tm-empty h3, .tm-empty h2 { color: var(--text); margin: 12px 0 8px; }

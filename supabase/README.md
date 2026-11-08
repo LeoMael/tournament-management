@@ -18,7 +18,7 @@ Pensado para desarrollo: pocos archivos, todos en el SQL Editor y en este orden.
 4. **Authentication → Users → Add user** (email + contraseña fuerte, Auto confirm). Solo para el primer admin.
 5. Ejecuta `03_admin.sql` con tu correo.
 5b. Despliega la función `manage-team` (sección siguiente) para gestionar el equipo desde el panel.
-5c. Ejecuta las migraciones SQL `001` a `011` en orden numérico. Consulta sus guías antes de aplicarlas.
+5c. Ejecuta las migraciones SQL `001` a `014` en orden numérico. Consulta sus guías antes de aplicarlas.
 6. **Project Settings → API**: copia la URL y la clave pública (`anon` o `publishable`) a los `.env` de
    `admin-panel/` y `esports-tournament-manager/`. **Nunca** uses la `service_role`.
 
@@ -74,3 +74,15 @@ Aplicar después de 009 `migrations/010_solo_nickname_registration.sql` antes de
 ## Eliminar salas Solo vacías (011)
 
 Aplicar después de 010 `migrations/011_delete_empty_solo_room.sql`. Añade la eliminación de borradores y salas canceladas vacías, exclusiva del administrador, con confirmación y auditoría. Consulta la [guía de 011](migrations/011_delete_empty_solo_room.md).
+
+## Guardado general de resultados Solo (012)
+
+Aplicar `migrations/012_solo_bulk_results.sql` después de 011. Permite guardar la tabla completa de kills y Booyah con un botón, en una sola transacción. Consulta la [guía de 012](migrations/012_solo_bulk_results.md).
+
+## Slots automáticos Solo (013)
+
+Aplicar `migrations/013_solo_registration_slots.sql` después de 012. Asigna un slot persistente por sala al aprobar una inscripción; completa los aprobados existentes por fecha de revisión. Consulta la [guía de 013](migrations/013_solo_registration_slots.md).
+
+## Slots en la web pública (014)
+
+Aplicar `migrations/014_public_solo_slots.sql` después de 013. Añade el número de slot a `public_solo_results` para que aparezca en el portal público. Consulta la [guía de 014](migrations/014_public_solo_slots.md).

@@ -1,0 +1,61 @@
+/* Distribución exclusiva de Solo: conserva los estilos de los otros módulos. */
+.solo-admin .page-header { align-items: center; margin-bottom: 10px; }
+.solo-admin .page-header h1 { font-size: 24px; margin-top: 2px; }
+.solo-admin .page-header .eyebrow { display: none; }
+.solo-admin .tm-notice { padding: 10px 14px; margin-bottom: 12px; }
+.solo-summary { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 4px 0 14px; color: var(--muted); font-size: 12px; }
+.solo-summary strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.solo-workspace { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 20px; align-items: start; min-width: 0; }
+.solo-room-list { min-width: 0; padding-right: 18px; border-right: 1px solid var(--border); }
+.solo-room-list .tm-section-head { align-items: center; margin-bottom: 12px; }
+.solo-room-list h2 { margin: 0; font-size: 14px; }
+.solo-room-list .field { margin-bottom: 12px; }
+.solo-room-list .field > span { font-size: 11px; }
+.solo-room-list .tm-room-option { padding: 14px; gap: 7px; }
+.solo-room-list .tm-room-option__top { align-items: center; flex-wrap: wrap; gap: 6px 8px; justify-content: flex-start; }
+.solo-room-list .tm-room-option__top strong { min-width: 0; }
+.solo-room-list .tm-room-option > small { font-size: 12px; line-height: 1.5; }
+.solo-room-list .tm-room-option:disabled { opacity: .6; cursor: wait; }
+.solo-admin .tm-room-detail { min-width: 0; }
+.solo-admin .tm-room-detail { gap: 12px; }
+.solo-admin .solo-overview { padding: 14px 18px; }
+.solo-room-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+.solo-room-heading h2 { margin: 0; font-size: 18px; }
+.solo-occupancy, .solo-rates { color: var(--muted); font-size: 12px; }
+.solo-rates { margin-left: auto; }
+.solo-details { margin-top: 8px; color: var(--muted); font-size: 12px; }
+.solo-details summary { cursor: pointer; width: fit-content; padding: 4px 0; }
+.solo-detail-values { display: flex; flex-wrap: wrap; gap: 12px 28px; padding-top: 10px; }
+.solo-detail-values strong { display: block; margin-top: 4px; color: var(--text); }
+.solo-admin .solo-overview .tm-actions { margin-top: 10px; padding-top: 10px; }
+.solo-admin .solo-overview .tm-actions:empty { display: none; }
+.solo-admin .tm-participants { padding: 14px 18px; }
+.solo-admin .tm-tabs { margin-bottom: 12px; }
+.solo-table-tools { display: flex; justify-content: space-between; align-items: center; gap: 10px 18px; flex-wrap: wrap; margin-bottom: 12px; }
+.solo-table-tools .field { margin: 0; flex: 1; min-width: min(240px, 100%); max-width: 420px; }
+.solo-table-tools input[type="search"] { min-height: 38px; }
+.solo-table-tools .field > span { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.solo-save-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.solo-save-actions > span { color: var(--muted); font-size: 11px; }
+.solo-admin .tm-tab-description { margin-bottom: 10px; }
+.solo-admin .table-wrap th, .solo-admin .table-wrap td { padding: 9px 12px; }
+.solo-admin .table-wrap th { white-space: nowrap; }
+.solo-slot { color: var(--accent); font-family: var(--mono); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.solo-admin .tm-result-fields input[type="number"] { width: 80px; padding-block: 6px; }
+.solo-admin .tm-payment-summary { padding: 10px 14px; margin-bottom: 12px; }
+.solo-admin .tm-payment-summary strong { font-size: 18px; }
+.solo-pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px; color: var(--muted); font-size: 12px; }
+.solo-pagination > div, .solo-pagination label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.solo-pagination select { width: auto; min-height: 32px; padding: 4px 8px; }
+@media (max-width: 900px) {
+  .solo-workspace { grid-template-columns: 1fr; gap: 14px; }
+  .solo-room-list { border-right: 0; padding-right: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 10px; max-height: 260px; overflow-y: auto; }
+  .solo-room-list > .tm-section-head, .solo-room-list > .field { grid-column: 1 / -1; margin: 0; }
+  .solo-room-list .tm-room-option { margin-bottom: 0; height: 100%; }
+}
+@media (max-width: 650px) {
+  .solo-rates { margin-left: 0; width: 100%; }
+  .solo-admin .solo-overview, .solo-admin .tm-participants { padding: 12px; }
+  .solo-save-actions { width: 100%; justify-content: space-between; }
+  .solo-pagination > div { width: 100%; }
+}
