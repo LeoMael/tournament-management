@@ -1,6 +1,6 @@
+import PrizeSettings from '../components/PrizeSettings'
 import MigrationHistory from '../components/MigrationHistory'
 import { migrationStatus } from '../lib/migrations'
-import PrizesCard from '../components/PrizesCard'
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useToast } from '../context/ToastContext'
@@ -183,27 +183,34 @@ export default function Settings() {
   useEffect(() => {
     let active = true
     ;(async () => {
-      const [s, g, p] = await Promise.all([
+      const [s, g, p, pools] = await Promise.all([
         supabase.from('tournament_settings').select('*').eq('id', 1).single(),
         supabase.from('games').select('*').order('key'),
-        supabase.from('prizes').select('id, game_key, place, label, amount, description, is_announced').order('place'),
+        supabase.from('prizes').select('id, game_key, place, label, amount, reward_text, description, is_announced').order('place'),
+        supabase.from('game_prize_pools').select('game_key, amount, is_announced, updated_at'),
       ])
       if (!active) return
       const err = s.error || g.error
       if (err) setError(err.message)
-      else setData({ settings: s.data, games: g.data, prizes: p.data, prizesError: p.error })
+      else setData({ settings: s.data, games: g.data, prizes: p.data, prizesError: p.error, pools: pools.data, poolsError: pools.error })
     })()
     return () => { active = false }
   }, [version])
 
   const refreshVersionAndPrizes = async () => {
     const status = await refreshMigration()
-    if (status?.hasPrizes && data?.prizesError) {
+    if (status?.rows.some((row) => row.version === '006') && (data?.prizesError || data?.poolsError)) {
       try {
-        const { data: prizes, error: prizesError } = await supabase.from('prizes').select('id, game_key, place, label, amount, description, is_announced').order('place')
-        setData((current) => current?.prizesError ? { ...current, prizes, prizesError } : current)
-      } catch (prizesError) {
-        setData((current) => current?.prizesError ? { ...current, prizesError } : current)
+        const [prizesResult, poolsResult] = await Promise.all([
+          supabase.from('prizes').select('id, game_key, place, label, amount, reward_text, description, is_announced').order('place'),
+          supabase.from('game_prize_pools').select('game_key, amount, is_announced, updated_at'),
+        ])
+        setData((current) => ({ ...current,
+          ...(current?.prizesError ? { prizes: prizesResult.data, prizesError: prizesResult.error } : {}),
+          ...(current?.poolsError ? { pools: poolsResult.data, poolsError: poolsResult.error } : {}),
+        }))
+      } catch (err) {
+        setData((current) => ({ ...current, ...(current?.prizesError ? { prizesError: err } : {}), ...(current?.poolsError ? { poolsError: err } : {}) }))
       }
     }
   }
@@ -221,8 +228,12 @@ export default function Settings() {
         <div className="grid grid--2">
           {data.games.map((g) => <GameCard key={`${g.key}-${version}`} game={g} onSaved={reload} />)}
         </div>
-        {!migration.hasPrizes ? <div className="card"><h2>Premios</h2><p>La migración 001 debe estar registrada para editar premios. Consulta el historial de versiones.</p></div> : data.prizesError ? <div className="card"><h2>Premios</h2><p>No se pueden cargar los premios por juego. Verifica que se haya aplicado la migración de premios y vuelve a intentarlo. No se guardaron cambios de premios.</p></div> : data.games.map((game) => <PrizesCard key={`${game.key}-${version}`} game={game} prizes={data.prizes.filter((p) => p.game_key === game.key)} onSaved={() => {}} />)}
-        {data.prizes?.some((p) => p.game_key === null) && <section className="card"><h2>Premios anteriores</h2><p>Estos valores se conservan sin asignar. Ingresa manualmente los premios correspondientes en cada juego.</p>{data.prizes.filter((p) => p.game_key === null).map((p) => <p key={p.id}>Puesto {p.place} · {p.label} · {money(p.amount)}{p.description ? ` · ${p.description}` : ''}</p>)}</section>}
+        {!migration.rows.some((row) => row.version === '006') ? (
+          <div className="card"><h2>Bolsa y premios</h2><p>La migración 006 debe estar registrada para editar la bolsa total y los premios. Consulta el historial de versiones.</p></div>
+        ) : data.prizesError || data.poolsError ? (
+          <div className="card"><h2>Bolsa y premios</h2><p>No se pudieron cargar los datos de premios. Verifica la migración 006 y actualiza la versión; no se guardaron cambios de premios.</p></div>
+        ) : <PrizeSettings key={`prizes-${version}`} games={data.games} prizes={data.prizes} pools={data.pools} />}
+        {data.prizes?.some((p) => p.game_key === null) && <details className="card"><summary>Premios anteriores · {data.prizes.filter((p) => p.game_key === null).length} sin asignar</summary><p>Estos valores se conservan sin asignar. Ingresa manualmente los premios correspondientes en cada juego.</p>{data.prizes.filter((p) => p.game_key === null).map((p) => <p key={p.id}>Puesto {p.place} · {p.label} · {money(p.amount)}{p.description ? ` · ${p.description}` : ''}</p>)}</details>}
       </div>
     </>
   )

@@ -1,0 +1,20 @@
+.prize-config > .seg { margin: 12px 0 18px; }
+.prize-config__game { min-width: 0; }
+.prize-config__pool { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.prize-config__pool .field { width: min(220px, 100%); margin: 0; }
+.prize-config__pool .hint { flex-basis: 100%; margin: 0; }
+.prize-config__toggle { display: inline-flex; gap: 6px; align-items: center; min-height: 38px; white-space: nowrap; }
+.prize-config__prizes h3 { margin: 18px 0 8px; }
+.prize-config__place { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.prize-config__row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(180px, 2fr) auto; align-items: center; gap: 12px; }
+.prize-config__row .field, .prize-config__row input { min-width: 0; margin: 0; }
+.prize-config__place details { margin-top: 6px; }
+.prize-config__place summary { color: var(--muted); cursor: pointer; font-size: 13px; }
+.prize-config__place .form-row { margin-top: 10px; }
+.prize-config__prizes > button { margin-top: 14px; }
+@media (max-width: 650px) {
+  .prize-config__row { grid-template-columns: 1fr; gap: 6px; }
+  .prize-config__toggle { min-height: 30px; }
+}
+
+.prize-config .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
