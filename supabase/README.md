@@ -18,7 +18,7 @@ Pensado para desarrollo: pocos archivos, todos en el SQL Editor y en este orden.
 4. **Authentication → Users → Add user** (email + contraseña fuerte, Auto confirm). Solo para el primer admin.
 5. Ejecuta `03_admin.sql` con tu correo.
 5b. Despliega la función `manage-team` (sección siguiente) para gestionar el equipo desde el panel.
-5c. Ejecuta las migraciones SQL `001` a `010` en orden numérico. Consulta sus guías antes de aplicarlas.
+5c. Ejecuta las migraciones SQL `001` a `011` en orden numérico. Consulta sus guías antes de aplicarlas.
 6. **Project Settings → API**: copia la URL y la clave pública (`anon` o `publishable`) a los `.env` de
    `admin-panel/` y `esports-tournament-manager/`. **Nunca** uses la `service_role`.
 
@@ -70,3 +70,7 @@ La guía [Ediciones, historial y Solo](migrations/007_009_tournament_modules.md)
 ## Solo sin ID y formulario actualizado (010)
 
 Aplicar después de 009 `migrations/010_solo_nickname_registration.sql` antes de publicar el formulario nuevo. La [guía de 010](migrations/010_solo_nickname_registration.md) explica compatibilidad y validación por nickname. Universidad y carrera siguen siendo opcionales.
+
+## Eliminar salas Solo vacías (011)
+
+Aplicar después de 010 `migrations/011_delete_empty_solo_room.sql`. Añade la eliminación de borradores y salas canceladas vacías, exclusiva del administrador, con confirmación y auditoría. Consulta la [guía de 011](migrations/011_delete_empty_solo_room.md).

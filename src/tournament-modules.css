@@ -21,6 +21,12 @@
 .tm-room-option { display: grid; gap: 11px; width: 100%; margin-bottom: 10px; padding: 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); text-align: left; font-family: inherit; cursor: pointer; transition: border-color .15s, background .15s; }
 .tm-room-option:hover { border-color: var(--border-strong); background: var(--surface-3); }
 .tm-room-option--active { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 var(--accent); }
+.tm-room-item { position: relative; }
+.tm-room-option--deletable .tm-room-option__top { padding-right: 30px; }
+.tm-room-delete { position: absolute; top: 9px; right: 9px; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.tm-room-delete:hover, .tm-room-delete:focus-visible { color: var(--bad); border-color: var(--bad); background: var(--surface-3); }
+.tm-room-delete:disabled { opacity: .5; cursor: wait; }
+.tm-delete-confirm { color: var(--bad); border-color: var(--bad); }
 .tm-room-option__top, .tm-room-option__foot { display: flex; justify-content: space-between; gap: 8px; }
 .tm-room-option__top strong { font-size: 14px; overflow-wrap: anywhere; }
 .tm-room-option > small, .tm-room-option__foot { font-size: 11px; color: var(--muted); }

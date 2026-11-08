@@ -28,7 +28,7 @@ try {
     insert into admins(user_id,email,role) select id,email,case when email like 'reviewer%' then 'revisor_arbitro' when email like 'editor%' then 'editor' else 'admin' end from auth.users;
     set request.jwt.claim.sub='00000000-0000-0000-0000-000000000001';
   `)
-  for (const file of ['tournament_modules.sql', 'tournament_permissions.sql', 'tournament_archive_roster.sql', 'solo_cancellations.sql']) {
+  for (const file of ['tournament_modules.sql', 'tournament_permissions.sql', 'tournament_archive_roster.sql', 'solo_cancellations.sql', 'solo_room_deletion.sql']) {
     await db.exec(fs.readFileSync(root + 'tests/' + file, 'utf8'))
     console.log('PASS', file)
   }
