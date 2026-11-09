@@ -1,0 +1,12 @@
+.solo-room-access { margin-top: 16px; padding: 14px; border: 1px solid var(--border, #25334c); border-radius: 8px; }
+.solo-room-access__head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.solo-room-access__head span { color: #90a4c5; font-size: 11px; }
+.solo-room-access__fields { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 12px; }
+.solo-room-access__fields .field { margin: 0; min-width: 0; }
+.solo-access-password { display: flex; gap: 6px; }
+.solo-access-password input { min-width: 0; flex: 1; }
+.solo-contact-access { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.solo-contact-access .solo-send-access { padding: 5px 9px; font-size: 11px; color: #5ce1af; border-color: #28634e; background: #133128; text-decoration: none; white-space: nowrap; }
+.solo-contact-access .solo-send-access:focus-visible { outline: 2px solid #75a4ff; outline-offset: 3px; }
+.solo-access-error { color: #ff929c; font-size: 12px; }
+@media (max-width: 650px) { .solo-room-access__fields { grid-template-columns: 1fr; } .solo-room-access__fields > button { justify-self: start; } }

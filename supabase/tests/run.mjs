@@ -22,11 +22,25 @@ try {
     if (file === 'migrations/013_solo_registration_slots.sql') {
       await db.exec(fs.readFileSync(root + 'tests/solo_slots_before_migration.sql', 'utf8'))
     }
+    if (file === 'migrations/017_solo_room_announcements.sql') {
+      await db.exec(`insert into solo_rooms(id,name,scheduled_at,closes_at,capacity,entry_price,kill_reward,booyah_reward)
+        values('00000000-0000-0000-0000-000000001700','Borrador previo',now()+interval '2 days',now()+interval '1 day',2,2,1,10)`)
+    }
     // gen_random_uuid es nativo; estos escenarios no utilizan las otras funciones de pgcrypto.
     await db.exec(fs.readFileSync(root + file, 'utf8').replace('create extension if not exists pgcrypto;', ''))
     if (file === 'migrations/013_solo_registration_slots.sql') {
       await db.exec(fs.readFileSync(root + 'tests/solo_slots_after_migration.sql', 'utf8'))
       console.log('PASS solo_slots_backfill')
+    }
+    if (file === 'migrations/017_solo_room_announcements.sql') {
+      await db.exec(`do $$ begin
+        if (select is_announced from solo_rooms where id='00000000-0000-0000-0000-000000001700') is distinct from false
+          or exists(select 1 from public_solo_rooms where id='00000000-0000-0000-0000-000000001700') then
+          raise exception 'TEST: migración publicó borrador existente';
+        end if;
+      end $$;
+      delete from solo_rooms where id='00000000-0000-0000-0000-000000001700'`)
+      console.log('PASS existing_solo_drafts_hidden')
     }
     console.log('OK', file)
   }
@@ -35,7 +49,7 @@ try {
     insert into admins(user_id,email,role) select id,email,case when email like 'reviewer%' then 'revisor_arbitro' when email like 'editor%' then 'editor' else 'admin' end from auth.users;
     set request.jwt.claim.sub='00000000-0000-0000-0000-000000000001';
   `)
-  for (const file of ['tournament_modules.sql', 'tournament_permissions.sql', 'tournament_archive_roster.sql', 'solo_cancellations.sql', 'solo_room_deletion.sql', 'solo_bulk_results.sql', 'solo_slots.sql', 'public_solo_slots.sql', 'completed_solo_room_deletion.sql']) {
+  for (const file of ['tournament_modules.sql', 'tournament_permissions.sql', 'tournament_archive_roster.sql', 'solo_cancellations.sql', 'solo_room_deletion.sql', 'solo_bulk_results.sql', 'solo_slots.sql', 'public_solo_slots.sql', 'completed_solo_room_deletion.sql', 'solo_room_announcements.sql']) {
     await db.exec(fs.readFileSync(root + 'tests/' + file, 'utf8'))
     console.log('PASS', file)
   }

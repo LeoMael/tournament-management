@@ -18,7 +18,7 @@ Pensado para desarrollo: pocos archivos, todos en el SQL Editor y en este orden.
 4. **Authentication → Users → Add user** (email + contraseña fuerte, Auto confirm). Solo para el primer admin.
 5. Ejecuta `03_admin.sql` con tu correo.
 5b. Despliega la función `manage-team` (sección siguiente) para gestionar el equipo desde el panel.
-5c. Ejecuta las migraciones SQL `001` a `015` en orden numérico. Consulta sus guías antes de aplicarlas.
+5c. Ejecuta las migraciones SQL `001` a `017` en orden numérico. Consulta sus guías antes de aplicarlas.
 6. **Project Settings → API**: copia la URL y la clave pública (`anon` o `publishable`) a los `.env` de
    `admin-panel/` y `esports-tournament-manager/`. **Nunca** uses la `service_role`.
 
@@ -90,3 +90,11 @@ Aplicar `migrations/014_public_solo_slots.sql` después de 013. Añade el númer
 ## Eliminar salas finalizadas de prueba (015)
 
 Aplicar `migrations/015_delete_completed_solo_rooms.sql` después de 014. El administrador puede eliminar salas finalizadas o canceladas con sus inscripciones, resultados y registros de pago, confirmando el nombre exacto. Incluye pagos pendientes; no realiza transferencias ni devoluciones. Consulta la [guía de 015](migrations/015_delete_completed_solo_rooms.md).
+
+## Acceso privado de salas (016)
+
+`migrations/016_solo_room_access.sql` guarda el ID de acceso y contraseña en una tabla privada, sin incluirlos en las vistas públicas. Consulta la [guía de 016](migrations/016_solo_room_access.md).
+
+## Anunciar borradores sin abrir inscripciones (017)
+
+Aplicar `migrations/017_solo_room_announcements.sql` después de 016. `is_announced` permite mostrar un borrador en `public_solo_rooms` sin cambiar su estado ni aceptar inscripciones. Los borradores existentes permanecen ocultos; la apertura directa sigue disponible. Consulta la [guía de 017](migrations/017_solo_room_announcements.md) para el contrato público y las pruebas.

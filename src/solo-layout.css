@@ -37,6 +37,7 @@
 .solo-table-tools .field > span { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .solo-save-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .solo-save-actions > span { color: var(--muted); font-size: 11px; }
+.solo-export-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .solo-admin .tm-tab-description { margin-bottom: 10px; }
 .solo-admin .table-wrap th, .solo-admin .table-wrap td { padding: 9px 12px; }
 .solo-admin .table-wrap th { white-space: nowrap; }

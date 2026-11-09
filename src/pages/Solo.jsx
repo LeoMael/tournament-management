@@ -6,7 +6,9 @@ import { ErrorBox, Modal, PageHeader, Spinner } from '../components/ui'
 import { money, dateTime, toLocalInput } from '../lib/format'
 import { signedReceiptUrl } from '../lib/storage'
 import { allRows, rpc, SOLO_STATUS, MIGRATION_MESSAGE } from '../lib/tournamentModules'
+import { soloPhones, soloAiPrompt, downloadSoloPhones } from '../lib/soloExports'
 import SoloResults from '../components/SoloResults'
+import SoloRoomAccess, { SoloWhatsAppButton } from '../components/SoloRoomAccess'
 import SoloPayments from '../components/SoloPayments'
 import PaymentRecipient from '../components/PaymentRecipient'
 import '../tournament-modules.css'
@@ -31,6 +33,7 @@ export default function Solo() {
   const [selected, setSelected] = useState(''), [editing, setEditing] = useState(null), [dialog, setDialog] = useState(null)
   const [view, setView] = useState('registrations'), [query, setQuery] = useState(''), [roomFilter, setRoomFilter] = useState('all')
   const [resultDrafts, setResultDrafts] = useState({})
+  const [roomAccess, setRoomAccess] = useState(null)
   const [pagination, setPagination] = useState({ key: '', index: 0, size: 12 })
   useEffect(() => {
     if (!Object.keys(resultDrafts).length) return undefined
@@ -54,13 +57,20 @@ export default function Solo() {
     try {
       const saved = action === 'delete'
         ? await rpc('delete_solo_room', { p_edition_id: data.settings.edition_id, p_room_id: extra.room_id, p_confirmation: extra.confirmation })
-        : await rpc('manage_solo', { p_action: action, p_data: { edition_id: data.settings.edition_id, room_id: room?.id, ...extra } })
+        : action === 'announce'
+          ? await rpc('set_solo_room_announcement', { p_edition_id: data.settings.edition_id, p_room_id: extra.room_id, p_is_announced: extra.is_announced })
+          : await rpc('manage_solo', { p_action: action, p_data: { edition_id: data.settings.edition_id, room_id: room?.id, ...extra } })
       if (action === 'create') { setSelected(saved.id); setView('registrations'); setRoomFilter('all') }
       if (action === 'delete' && room?.id === extra.room_id) { setSelected(''); setQuery(''); setView('registrations') }
       if (action === 'delete') setResultDrafts((drafts) => { const next = { ...drafts }; delete next[extra.room_id]; return next })
-      toast.success(action === 'delete' ? 'Sala eliminada.' : 'Cambios guardados.'); setEditing(null); setDialog(null); await load()
+      const message = action === 'announce'
+        ? (extra.is_announced ? 'Sala anunciada. Las inscripciones siguen cerradas.' : 'Anuncio oculto.')
+        : action === 'delete' ? 'Sala eliminada.' : 'Cambios guardados.'
+      toast.success(message); setEditing(null); setDialog(null); await load()
     } catch (err) {
-      toast.error(action === 'delete' && err.message.includes('delete_solo_room')
+      toast.error(action === 'announce' && err.message.includes('set_solo_room_announcement')
+        ? 'Para anunciar salas, aplica la migración 017 en Supabase y actualiza la página.'
+        : action === 'delete' && err.message.includes('delete_solo_room')
         ? 'Para eliminar estas salas, aplica la migración 015 en Supabase y actualiza la página.'
         : err.message)
     } finally { setBusy(false) }
@@ -74,6 +84,20 @@ export default function Solo() {
       || String(a.created_at).localeCompare(String(b.created_at)) || a.id.localeCompare(b.id))
   const resultById = Object.fromEntries(data.results.map((r) => [r.registration_id, r]))
   const approved = people.filter((p) => p.status === 'approved')
+  const exportPhones = () => {
+    try {
+      const phones = soloPhones(approved)
+      if (!phones.length) { toast.error('No hay números registrados para exportar.'); return }
+      downloadSoloPhones(room, phones)
+      toast.success(`Excel exportado: ${phones.length} números únicos de aprobados de esta sala.`)
+    } catch { toast.error('No se pudo generar el Excel. Intenta de nuevo.') }
+  }
+  const copyForAi = async () => {
+    try {
+      await navigator.clipboard.writeText(soloAiPrompt(room, approved))
+      toast.success('Prompt y nómina completa copiados. Pégalos en la IA junto con la captura final.')
+    } catch { toast.error('No se pudo copiar. Comprueba el permiso del portapapeles del navegador.') }
+  }
   const initialResults = Object.fromEntries(approved.map((p) => [p.id, { kills: resultById[p.id]?.kills ?? 0, booyah: resultById[p.id]?.booyah ?? false }]))
   const roomResults = { ...initialResults, ...resultDrafts[room?.id] }
   const resultsDirty = approved.some((p) => !resultById[p.id]
@@ -147,7 +171,7 @@ export default function Solo() {
             || (r.status === 'draft' && !data.registrations.some((p) => p.room_id === r.id)
               && !data.results.some((result) => result.room_id === r.id)))
           return <div className="tm-room-item" key={r.id}>
-            <button type="button" disabled={busy} className={`tm-room-option ${canDelete ? 'tm-room-option--deletable' : ''} ${r.id === room?.id ? 'tm-room-option--active' : ''}`} aria-pressed={r.id === room?.id} onClick={() => { setSelected(r.id); setQuery('') }}><span className="tm-room-option__top"><strong>{r.name}</strong>{badge(r.status)}</span><small>{count ? `${count} jugadores` : 'Sin jugadores'}</small></button>
+            <button type="button" disabled={busy} className={`tm-room-option ${canDelete ? 'tm-room-option--deletable' : ''} ${r.id === room?.id ? 'tm-room-option--active' : ''}`} aria-pressed={r.id === room?.id} onClick={() => { setSelected(r.id); setQuery('') }}><span className="tm-room-option__top"><strong>{r.name}</strong>{badge(r.status)}{r.status === 'draft' && r.is_announced && <span className="tm-status tm-status--published">Anunciada</span>}</span><small>{count ? `${count} jugadores` : 'Sin jugadores'}</small></button>
             {canDelete && <button type="button" className="tm-room-delete" disabled={busy} aria-label={`Eliminar sala ${r.name}`} title="Eliminar sala" onClick={() => confirmRoomDeletion(r)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg></button>}
           </div>
         })}
@@ -156,10 +180,10 @@ export default function Solo() {
       <div className="tm-room-detail">
         {room ? <>
           <section className="card tm-room-overview solo-overview">
-            <div className="solo-room-heading"><h2>{room.name}</h2>{badge(room.status)}<span className="solo-occupancy">{people.filter((p) => ['pending', 'approved'].includes(p.status)).length} / {room.capacity} participantes</span><span className="solo-rates">{money(room.kill_reward)} / kill · + {money(room.booyah_reward)} Booyah</span></div>
-            <details className="solo-details" key={room.id}><summary>Detalles de la sala</summary><div className="solo-detail-values"><span>Partida <strong>{dateTime(room.scheduled_at)}</strong></span><span>Cierre <strong>{dateTime(room.closes_at)}</strong></span><span>Entrada <strong>{money(room.entry_price)}</strong></span><span>Por kill <strong>{money(room.kill_reward)}</strong></span><span>Bono Booyah <strong>{money(room.booyah_reward)}</strong></span></div>{room.cancellation_reason && <p className="hint">Motivo de cancelación: {room.cancellation_reason}</p>}</details>
+            <div className="solo-room-heading"><h2>{room.name}</h2>{badge(room.status)}{room.status === 'draft' && room.is_announced && <span className="tm-status tm-status--published">Anuncio visible</span>}<span className="solo-occupancy">{people.filter((p) => ['pending', 'approved'].includes(p.status)).length} / {room.capacity} participantes</span><span className="solo-rates">{money(room.kill_reward)} / kill · + {money(room.booyah_reward)} Booyah</span></div>
+            <details className="solo-details" key={room.id}><summary>Detalles de la sala</summary><div className="solo-detail-values"><span>Partida <strong>{dateTime(room.scheduled_at)}</strong></span><span>Cierre <strong>{dateTime(room.closes_at)}</strong></span><span>Entrada <strong>{money(room.entry_price)}</strong></span><span>Por kill <strong>{money(room.kill_reward)}</strong></span><span>Bono Booyah <strong>{money(room.booyah_reward)}</strong></span></div>{<SoloRoomAccess key={room.id} room={room} editionId={data.settings.edition_id} onSaved={setRoomAccess} />}{room.cancellation_reason && <p className="hint">Motivo de cancelación: {room.cancellation_reason}</p>}</details>
             <div className="tm-actions">
-              {admin && room.status === 'draft' && <><button className="btn" disabled={busy} onClick={() => setEditing(room)}>Editar sala</button><button className="btn btn--primary" disabled={busy} onClick={() => setDialog({ action: 'open', title: 'Abrir inscripciones', text: 'El precio, el cupo y los premios quedarán fijados para esta sala.' })}>Abrir inscripciones</button></>}
+              {admin && room.status === 'draft' && <><button className="btn" disabled={busy} onClick={() => setEditing(room)}>Editar sala</button><button type="button" className="btn" disabled={busy} onClick={() => act('announce', { room_id: room.id, is_announced: !room.is_announced })}>{room.is_announced ? 'Ocultar anuncio' : 'Anunciar sala'}</button><button className="btn btn--primary" disabled={busy} onClick={() => setDialog({ action: 'open', title: 'Abrir inscripciones', text: 'El precio, el cupo y los premios quedarán fijados para esta sala.' })}>Abrir inscripciones</button></>}
               {room.status === 'open' && <button className="btn" disabled={busy} onClick={() => act('close')}>Cerrar inscripciones</button>}
               {room.status === 'closed' && <button className="btn btn--primary" disabled={busy} onClick={() => setDialog({ action: 'start', title: 'Iniciar partida' })}>Iniciar partida</button>}
               {room.status === 'playing' && <button className="btn btn--primary" disabled={busy} onClick={() => { if (resultsDirty) { setView('results'); toast.error('Guarda todos los resultados antes de finalizar.'); return } setDialog({ action: 'finish', title: 'Finalizar y fijar ganancias', text: 'Los resultados quedarán bloqueados y se generarán las ganancias pendientes.' }) }}>Finalizar partida</button>}
@@ -168,9 +192,10 @@ export default function Solo() {
           </section>
           <section className="card tm-participants"><div className="tm-tabs" role="tablist" aria-label="Gestión de la sala">{[['registrations', 'Inscripciones', people.length], ['results', 'Resultados', people.filter((p) => p.status === 'approved').length], ['payments', 'Pagos', payments.filter((p) => !p.paid_at).length]].map(([key, label, count]) => <button type="button" role="tab" aria-selected={view === key} className={view === key ? 'tm-tab tm-tab--active' : 'tm-tab'} key={key} onClick={() => setView(key)}>{label}<span>{count}</span></button>)}</div>
             <div className="solo-table-tools"><label className="field tm-search"><span className="sr-only">Buscar participante</span><input aria-label="Buscar participante" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar nickname, nombre o número…" /></label>
+              <div className="solo-export-actions"><button type="button" className="btn btn--sm" disabled={busy || !approved.length} title="Exportar números únicos de todos los aprobados de esta sala" onClick={exportPhones}>Exportar Excel</button><button type="button" className="btn btn--sm" disabled={busy || !approved.length} title="Copiar slots, nicknames exactos y tarifas de todos los aprobados de esta sala" onClick={copyForAi}>Copiar para IA</button></div>
               {view === 'results' && room.status === 'playing' && <div className="solo-save-actions"><span role="status">{resultsDirty ? 'Cambios sin guardar' : 'Resultados guardados'}</span><button type="button" className="btn btn--primary" disabled={busy || !resultsDirty} onClick={saveResults}>{busy ? 'Guardando...' : 'Guardar todos los resultados'}</button></div>}
             </div>
-            {view === 'registrations' && <><div className="table-wrap"><table><thead><tr><th>Slot</th><th>Jugador</th><th>Contacto e institución</th><th>Inscripción</th><th>Revisión</th></tr></thead><tbody>{visiblePeople.map((p) => <tr key={p.id}><td><span className="solo-slot">{p.slot != null ? `#${p.slot}` : "\u2014"}</span></td><td><div className="tm-player"><span className="tm-player-avatar">{p.nickname.slice(0, 2).toUpperCase()}</span><div><strong>{p.nickname}</strong><small>{p.full_name}</small></div></div></td><td><strong>{p.whatsapp}</strong><small className="tm-cell-note">{p.institution || 'Sin institución'}{p.professional_school ? ` · ${p.professional_school}` : ''}</small>{p.game_player_id && <small className="tm-cell-note">ID anterior: {p.game_player_id}</small>}</td><td>{badge(p.status)}<small className="tm-cell-note">{money(p.amount_due)}</small>{p.reason && <small className="tm-cell-note">{p.reason}</small>}</td><td><button type="button" className="btn btn--sm" onClick={() => receipt(p.receipt_path)}>Ver comprobante ↗</button>{p.status === 'pending' && ['open', 'closed'].includes(room.status) && <div className="tm-row-actions"><button className="btn btn--sm btn--primary" disabled={busy} onClick={() => act('review', { registration_id: p.id, status: 'approved' })}>Aprobar</button>{[['rejected', 'Rechazar'], ['refund_pending', 'Devolver']].map(([status, label]) => <button key={status} className="btn btn--sm" disabled={busy} onClick={() => setDialog({ action: 'review', title: label, reason: true, extra: { registration_id: p.id, status } })}>{label}</button>)}</div>}</td></tr>)}</tbody></table></div>{visiblePeople.length === 0 && <div className="tm-empty"><h3>{people.length ? 'No encontramos ese jugador' : 'Aún no hay inscripciones'}</h3><p>{people.length ? 'Prueba otro nombre o nickname.' : 'Las solicitudes aparecerán aquí cuando los jugadores se inscriban.'}</p></div>}</>}
+            {view === 'registrations' && <><div className="table-wrap"><table><thead><tr><th>Slot</th><th>Jugador</th><th>Contacto e institución</th><th>Inscripción</th><th>Revisión</th></tr></thead><tbody>{visiblePeople.map((p) => <tr key={p.id}><td><span className="solo-slot">{p.slot != null ? `#${p.slot}` : "\u2014"}</span></td><td><div className="tm-player"><span className="tm-player-avatar">{p.nickname.slice(0, 2).toUpperCase()}</span><div><strong>{p.nickname}</strong><small>{p.full_name}</small></div></div></td><td><div className="solo-contact-access"><strong>{p.whatsapp}</strong><SoloWhatsAppButton room={room} person={p} access={roomAccess} /></div><small className="tm-cell-note">{p.institution || 'Sin institución'}{p.professional_school ? ` · ${p.professional_school}` : ''}</small>{p.game_player_id && <small className="tm-cell-note">ID anterior: {p.game_player_id}</small>}</td><td>{badge(p.status)}<small className="tm-cell-note">{money(p.amount_due)}</small>{p.reason && <small className="tm-cell-note">{p.reason}</small>}</td><td><button type="button" className="btn btn--sm" onClick={() => receipt(p.receipt_path)}>Ver comprobante ↗</button>{p.status === 'pending' && ['open', 'closed'].includes(room.status) && <div className="tm-row-actions"><button className="btn btn--sm btn--primary" disabled={busy} onClick={() => act('review', { registration_id: p.id, status: 'approved' })}>Aprobar</button>{[['rejected', 'Rechazar'], ['refund_pending', 'Devolver']].map(([status, label]) => <button key={status} className="btn btn--sm" disabled={busy} onClick={() => setDialog({ action: 'review', title: label, reason: true, extra: { registration_id: p.id, status } })}>{label}</button>)}</div>}</td></tr>)}</tbody></table></div>{visiblePeople.length === 0 && <div className="tm-empty"><h3>{people.length ? 'No encontramos ese jugador' : 'Aún no hay inscripciones'}</h3><p>{people.length ? 'Prueba otro nombre o nickname.' : 'Las solicitudes aparecerán aquí cuando los jugadores se inscriban.'}</p></div>}</>}
             {view === 'results' && <SoloResults room={room} people={visiblePeople} results={room.status === 'playing' ? roomResults : resultById} busy={busy} onChange={changeResult} />}
             {view === 'payments' && <SoloPayments payments={visiblePayments} totalDue={payments.filter((p) => !p.paid_at).reduce((sum, p) => sum + Number(p.amount), 0)} hasPayments={payments.length > 0} people={people} admin={admin} busy={busy} onPay={(payment) => setDialog({ action: 'pay', title: 'Registrar pago realizado', reference: true, extra: { payment_id: payment.id, room_id: room.id } })} />}
             {rowCount > 0 && <div className="solo-pagination"><span>{pageStart + 1}–{Math.min(pageStart + pagination.size, rowCount)} de {rowCount} {view === 'payments' ? 'pagos' : 'participantes'}</span><div><label>Por página <select aria-label="Registros por página" value={pagination.size} onChange={(e) => setPagination({ key: pageKey, index: 0, size: Number(e.target.value) })}>{[12, 24, 48, 100].map((size) => <option key={size} value={size}>{size}</option>)}</select></label><button type="button" className="btn btn--sm" disabled={page === 0} onClick={() => setPagination({ ...pagination, key: pageKey, index: page - 1 })}>Anterior</button><button type="button" className="btn btn--sm" disabled={page >= lastPage} onClick={() => setPagination({ ...pagination, key: pageKey, index: page + 1 })}>Siguiente</button></div></div>}
