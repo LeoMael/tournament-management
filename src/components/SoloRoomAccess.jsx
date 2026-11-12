@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
-import { soloAccessLink } from '../lib/soloWhatsApp'
+import { soloWhatsAppAction } from '../lib/soloWhatsApp'
 import './SoloRoomAccess.css'
 
 export default function SoloRoomAccess({ room, editionId, onSaved }) {
@@ -35,7 +35,7 @@ export default function SoloRoomAccess({ room, editionId, onSaved }) {
   const change = (setter, value) => {
     setter(value)
     onSaved(null)
-    setMessage('Cambios pendientes: guarda el acceso antes de abrir WhatsApp.')
+    setMessage('Cambios pendientes: guarda el acceso para enviarlo. Mientras tanto, puedes confirmar la inscripción sin incluir credenciales.')
   }
   const save = async (event) => {
     event.preventDefault()
@@ -60,7 +60,7 @@ export default function SoloRoomAccess({ room, editionId, onSaved }) {
       <label className="field">Contraseña<div className="solo-access-password"><input value={password} onChange={(e) => change(setPassword, e.target.value)} type={visible ? 'text' : 'password'} maxLength={100} required autoComplete="off" disabled={loading || saving || !editable} /><button type="button" className="btn btn--sm" aria-pressed={visible} onClick={() => setVisible(!visible)}>{visible ? 'Ocultar' : 'Mostrar'}</button></div></label>
       <button type="submit" className="btn btn--primary btn--sm" disabled={loading || saving || !editable || !id.trim() || !password.trim()}>{saving ? 'Guardando…' : 'Guardar acceso'}</button>
     </div>
-    <p className="hint">Abre el chat desde «Enviar acceso», junto al teléfono del aprobado. Revisa el mensaje y pulsa Enviar en WhatsApp.</p>
+    <p className="hint">Sin acceso guardado, «Confirmar inscripción» prepara la confirmación con sala, hora y slot. Al guardar el ID y la contraseña, cambia a «Enviar acceso». Revisa el mensaje y pulsa Enviar en WhatsApp.</p>
     {!editable && <p className="hint">El acceso se prepara cuando las inscripciones están abiertas o cerradas, o la partida está en juego.</p>}
     {loading && <p className="hint" role="status">Cargando acceso…</p>}
     {error && <p className="solo-access-error" role="alert">{error}</p>}
@@ -70,8 +70,8 @@ export default function SoloRoomAccess({ room, editionId, onSaved }) {
 
 export function SoloWhatsAppButton({ room, person, access }) {
   if (person.status !== 'approved' || !['open', 'closed', 'playing'].includes(room.status)) return null
-  const href = soloAccessLink(room, person, access)
+  const { href, label } = soloWhatsAppAction(room, person, access)
   return href
-    ? <a className="btn btn--sm solo-send-access" href={href} target="_blank" rel="noopener noreferrer" aria-label={'Enviar acceso por WhatsApp a ' + person.nickname}>Enviar acceso</a>
-    : <button type="button" className="btn btn--sm solo-send-access" disabled title="Guarda el acceso y comprueba que el jugador tenga teléfono válido y slot asignado.">Enviar acceso</button>
+    ? <a className="btn btn--sm solo-send-access" href={href} target="_blank" rel="noopener noreferrer" aria-label={label + ' por WhatsApp a ' + person.nickname}>{label}</a>
+    : <button type="button" className="btn btn--sm solo-send-access" disabled title="Comprueba que el jugador tenga teléfono válido y slot asignado.">{label}</button>
 }
