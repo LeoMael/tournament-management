@@ -4,10 +4,10 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { ErrorBox, Modal, PageHeader, Spinner } from '../components/ui'
 import { money, dateTime, toLocalInput } from '../lib/format'
-import { signedReceiptUrl } from '../lib/storage'
 import { allRows, rpc, SOLO_STATUS, MIGRATION_MESSAGE } from '../lib/tournamentModules'
 import { soloPhones, soloAiPrompt, downloadSoloPhones } from '../lib/soloExports'
 import SoloResults from '../components/SoloResults'
+import SoloParticipantDetail from '../components/SoloParticipantDetail'
 import SoloRoomAccess, { SoloWhatsAppButton } from '../components/SoloRoomAccess'
 import SoloPayments from '../components/SoloPayments'
 import PaymentRecipient from '../components/PaymentRecipient'
@@ -34,6 +34,7 @@ export default function Solo() {
   const [view, setView] = useState('registrations'), [query, setQuery] = useState(''), [roomFilter, setRoomFilter] = useState('all')
   const [resultDrafts, setResultDrafts] = useState({})
   const [roomAccess, setRoomAccess] = useState(null)
+  const [detailId, setDetailId] = useState('')
   const [pagination, setPagination] = useState({ key: '', index: 0, size: 12 })
   useEffect(() => {
     if (!Object.keys(resultDrafts).length) return undefined
@@ -75,8 +76,26 @@ export default function Solo() {
         : err.message)
     } finally { setBusy(false) }
   }
-  const receipt = async (path) => {
-    try { const url = await signedReceiptUrl(path); window.open(url, '_blank', 'noopener,noreferrer') } catch (err) { toast.error(err.message) }
+  const deleteParticipant = async (target, targetRoom, confirmation) => {
+    if (busy) return 'Hay otra operación en curso. Intenta de nuevo.'
+    setBusy(true)
+    try {
+      await rpc('delete_solo_registration', { p_edition_id: data.settings.edition_id, p_room_id: targetRoom.id, p_registration_id: target.id, p_confirmation: confirmation })
+      setData((current) => ({ ...current, registrations: current.registrations.filter((p) => p.id !== target.id) }))
+      setResultDrafts((drafts) => {
+        if (!drafts[targetRoom.id]) return drafts
+        const nextRoom = { ...drafts[targetRoom.id] }; delete nextRoom[target.id]
+        return { ...drafts, [targetRoom.id]: nextRoom }
+      })
+      setDetailId('')
+      toast.success('Participante eliminado. Los slots de los demás se conservan.')
+      await load()
+      return null
+    } catch (err) {
+      return err.message.includes('delete_solo_registration')
+        ? 'Para eliminar participantes, aplica la migración 018 en Supabase y actualiza el panel.'
+        : err.message
+    } finally { setBusy(false) }
   }
   if (!data) return error ? <ErrorBox error={error} /> : <Spinner />
   const people = data.registrations.filter((p) => p.room_id === room?.id)
@@ -128,6 +147,8 @@ export default function Solo() {
   const payments = data.payments.filter((p) => people.some((a) => a.id === p.registration_id))
   const dialogPayment = dialog?.action === 'pay' ? data.payments.find((p) => p.id === dialog.extra.payment_id) : null
   const dialogRecipient = dialogPayment ? data.registrations.find((p) => p.id === dialogPayment.registration_id) : null
+  const detailPerson = data.registrations.find((p) => p.id === detailId)
+  const detailRoom = detailPerson ? data.rooms.find((r) => r.id === detailPerson.room_id) : null
   const filteredPeople = people.filter((p) => `${p.slot != null ? `slot ${p.slot} #${p.slot}` : ''} ${p.nickname} ${p.full_name} ${p.whatsapp} ${p.institution}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const due = data.payments.filter((p) => !p.paid_at).reduce((sum, p) => sum + Number(p.amount), 0)
   const filteredPayments = payments.filter((payment) => filteredPeople.some((person) => person.id === payment.registration_id))
@@ -195,7 +216,7 @@ export default function Solo() {
               <div className="solo-export-actions"><button type="button" className="btn btn--sm" disabled={busy || !approved.length} title="Exportar números únicos de todos los aprobados de esta sala" onClick={exportPhones}>Exportar Excel</button><button type="button" className="btn btn--sm" disabled={busy || !approved.length} title="Copiar slots, nicknames exactos y tarifas de todos los aprobados de esta sala" onClick={copyForAi}>Copiar para IA</button></div>
               {view === 'results' && room.status === 'playing' && <div className="solo-save-actions"><span role="status">{resultsDirty ? 'Cambios sin guardar' : 'Resultados guardados'}</span><button type="button" className="btn btn--primary" disabled={busy || !resultsDirty} onClick={saveResults}>{busy ? 'Guardando...' : 'Guardar todos los resultados'}</button></div>}
             </div>
-            {view === 'registrations' && <><div className="table-wrap"><table><thead><tr><th>Slot</th><th>Jugador</th><th>Contacto e institución</th><th>Inscripción</th><th>Revisión</th></tr></thead><tbody>{visiblePeople.map((p) => <tr key={p.id}><td><span className="solo-slot">{p.slot != null ? `#${p.slot}` : "\u2014"}</span></td><td><div className="tm-player"><span className="tm-player-avatar">{p.nickname.slice(0, 2).toUpperCase()}</span><div><strong>{p.nickname}</strong><small>{p.full_name}</small></div></div></td><td><div className="solo-contact-access"><strong>{p.whatsapp}</strong><SoloWhatsAppButton room={room} person={p} access={roomAccess} /></div><small className="tm-cell-note">{p.institution || 'Sin institución'}{p.professional_school ? ` · ${p.professional_school}` : ''}</small>{p.game_player_id && <small className="tm-cell-note">ID anterior: {p.game_player_id}</small>}</td><td>{badge(p.status)}<small className="tm-cell-note">{money(p.amount_due)}</small>{p.reason && <small className="tm-cell-note">{p.reason}</small>}</td><td><button type="button" className="btn btn--sm" onClick={() => receipt(p.receipt_path)}>Ver comprobante ↗</button>{p.status === 'pending' && ['open', 'closed'].includes(room.status) && <div className="tm-row-actions"><button className="btn btn--sm btn--primary" disabled={busy} onClick={() => act('review', { registration_id: p.id, status: 'approved' })}>Aprobar</button>{[['rejected', 'Rechazar'], ['refund_pending', 'Devolver']].map(([status, label]) => <button key={status} className="btn btn--sm" disabled={busy} onClick={() => setDialog({ action: 'review', title: label, reason: true, extra: { registration_id: p.id, status } })}>{label}</button>)}</div>}</td></tr>)}</tbody></table></div>{visiblePeople.length === 0 && <div className="tm-empty"><h3>{people.length ? 'No encontramos ese jugador' : 'Aún no hay inscripciones'}</h3><p>{people.length ? 'Prueba otro nombre o nickname.' : 'Las solicitudes aparecerán aquí cuando los jugadores se inscriban.'}</p></div>}</>}
+            {view === 'registrations' && <><div className="table-wrap"><table><thead><tr><th>Slot</th><th>Jugador</th><th>Contacto e institución</th><th>Inscripción</th><th>Revisión</th></tr></thead><tbody>{visiblePeople.map((p) => <tr key={p.id}><td><span className="solo-slot">{p.slot != null ? `#${p.slot}` : "\u2014"}</span></td><td><div className="tm-player"><span className="tm-player-avatar">{p.nickname.slice(0, 2).toUpperCase()}</span><div><strong>{p.nickname}</strong><small>{p.full_name}</small></div></div></td><td><div className="solo-contact-access"><strong>{p.whatsapp}</strong><SoloWhatsAppButton room={room} person={p} access={roomAccess} /></div><small className="tm-cell-note">{p.institution || 'Sin institución'}{p.professional_school ? ` · ${p.professional_school}` : ''}</small>{p.game_player_id && <small className="tm-cell-note">ID anterior: {p.game_player_id}</small>}</td><td>{badge(p.status)}<small className="tm-cell-note">{money(p.amount_due)}</small>{p.reason && <small className="tm-cell-note">{p.reason}</small>}</td><td><button type="button" className="btn btn--sm" disabled={busy} onClick={() => setDetailId(p.id)}>Ver detalle</button>{p.status === 'pending' && ['open', 'closed'].includes(room.status) && <div className="tm-row-actions"><button className="btn btn--sm btn--primary" disabled={busy} onClick={() => act('review', { registration_id: p.id, status: 'approved' })}>Aprobar</button>{[['rejected', 'Rechazar'], ['refund_pending', 'Devolver']].map(([status, label]) => <button key={status} className="btn btn--sm" disabled={busy} onClick={() => setDialog({ action: 'review', title: label, reason: true, extra: { registration_id: p.id, status } })}>{label}</button>)}</div>}</td></tr>)}</tbody></table></div>{visiblePeople.length === 0 && <div className="tm-empty"><h3>{people.length ? 'No encontramos ese jugador' : 'Aún no hay inscripciones'}</h3><p>{people.length ? 'Prueba otro nombre o nickname.' : 'Las solicitudes aparecerán aquí cuando los jugadores se inscriban.'}</p></div>}</>}
             {view === 'results' && <SoloResults room={room} people={visiblePeople} results={room.status === 'playing' ? roomResults : resultById} busy={busy} onChange={changeResult} />}
             {view === 'payments' && <SoloPayments payments={visiblePayments} totalDue={payments.filter((p) => !p.paid_at).reduce((sum, p) => sum + Number(p.amount), 0)} hasPayments={payments.length > 0} people={people} admin={admin} busy={busy} onPay={(payment) => setDialog({ action: 'pay', title: 'Registrar pago realizado', reference: true, extra: { payment_id: payment.id, room_id: room.id } })} />}
             {rowCount > 0 && <div className="solo-pagination"><span>{pageStart + 1}–{Math.min(pageStart + pagination.size, rowCount)} de {rowCount} {view === 'payments' ? 'pagos' : 'participantes'}</span><div><label>Por página <select aria-label="Registros por página" value={pagination.size} onChange={(e) => setPagination({ key: pageKey, index: 0, size: Number(e.target.value) })}>{[12, 24, 48, 100].map((size) => <option key={size} value={size}>{size}</option>)}</select></label><button type="button" className="btn btn--sm" disabled={page === 0} onClick={() => setPagination({ ...pagination, key: pageKey, index: page - 1 })}>Anterior</button><button type="button" className="btn btn--sm" disabled={page >= lastPage} onClick={() => setPagination({ ...pagination, key: pageKey, index: page + 1 })}>Siguiente</button></div></div>}
@@ -203,6 +224,7 @@ export default function Solo() {
         </> : <section className="card tm-empty tm-room-placeholder"><span className="tm-empty-mark">FF</span><h2>{data.rooms.length ? 'Sin salas con este estado' : 'Prepara tu primera sala Solo'}</h2><p>Una entrada por jugador. Ganancias por kills y un bono para el Booyah.</p></section>}
       </div>
     </div>
+    {detailPerson && detailRoom && <SoloParticipantDetail key={detailPerson.id} person={detailPerson} room={detailRoom} isAdmin={admin} hasResults={data.results.some((r) => r.registration_id === detailPerson.id)} hasPayments={data.payments.some((p) => p.registration_id === detailPerson.id)} busy={busy} onClose={() => setDetailId('')} onDelete={(confirmation) => deleteParticipant(detailPerson, detailRoom, confirmation)} />}
     {editing && <RoomForm room={editing.id ? editing : null} busy={busy} onClose={() => !busy && setEditing(null)} onSave={(values) => act(editing.id ? 'edit' : 'create', { ...values, ...(editing.id ? { room_id: editing.id } : {}) })} />}
     {dialog && <Modal title={dialog.title} onClose={() => !busy && setDialog(null)}><form onSubmit={(e) => { e.preventDefault(); act(dialog.action, { ...dialog.extra, ...Object.fromEntries(new FormData(e.currentTarget)) }) }}><p>{dialog.text || 'Confirma la operación para esta sala.'}</p>{dialogPayment && <div className="tm-payment-confirm"><PaymentRecipient person={dialogRecipient} /><p>Importe: <strong>{money(dialogPayment.amount)}</strong></p><p className="hint">Confirma el destinatario en Yape. Registra este pago solo cuando hayas realizado la transferencia.</p></div>}{dialog.warning && <p className="tm-notice">{dialog.warning}</p>}{dialog.confirmName && <label className="field">Escribe el nombre exacto: <strong>{dialog.confirmName}</strong><input key={dialog.extra.room_id} name="confirmation" autoComplete="off" required disabled={busy} onChange={(e) => e.target.setCustomValidity(e.target.value === dialog.confirmName ? '' : 'El nombre debe coincidir exactamente.')} /></label>}{dialog.reason && <label className="field">Motivo<input name="reason" required minLength={3} maxLength={500} /></label>}{dialog.reference && <label className="field">Referencia (opcional)<input name="reference" maxLength={300} /></label>}<div className="tm-actions">{dialog.action === 'delete' && <button type="button" className="btn" disabled={busy} onClick={() => setDialog(null)}>Volver</button>}<button className={`btn ${dialog.action === 'delete' ? 'tm-delete-confirm' : 'btn--primary'}`} disabled={busy}>{dialog.action === 'delete' ? (busy ? 'Eliminando…' : 'Eliminar sala') : 'Confirmar'}</button></div></form></Modal>}
   </div>

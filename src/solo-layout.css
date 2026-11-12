@@ -42,6 +42,14 @@
 .solo-admin .table-wrap th, .solo-admin .table-wrap td { padding: 9px 12px; }
 .solo-admin .table-wrap th { white-space: nowrap; }
 .solo-slot { color: var(--accent); font-family: var(--mono); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.solo-participant-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.solo-participant-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; width: 100%; }
+.solo-delete-participant { color: var(--bad); margin-left: auto; }
+.solo-participant-receipt h3 { font-size: 14px; margin-bottom: 12px; }
+.solo-participant-receipt-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.solo-participant-delete { width: 100%; display: grid; gap: 12px; }
+.solo-participant-delete > p { margin: 0; font-size: 13px; }
+.solo-participant-delete .field { margin: 0; }
 .solo-admin .tm-result-fields input[type="number"] { width: 80px; padding-block: 6px; }
 .solo-admin .tm-payment-summary { padding: 10px 14px; margin-bottom: 12px; }
 .solo-admin .tm-payment-summary strong { font-size: 18px; }
