@@ -39,7 +39,7 @@ export function soloConfirmationLink(room, person) {
   if (!phone) return null
   const time = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' }).format(new Date(room.scheduled_at))
   const message = [
-    'Hola, ' + person.nickname + '. Tu inscripción a «' + room.name + '» fue aprobada. ✅',
+    'Hola, ' + person.nickname + '. Tu inscripción a «' + room.name + '» fue aprobada. ✓',
     '', 'Fecha y hora: ' + time + ' (Perú)',
     'Tu slot: ' + String(person.slot).padStart(2, '0'),
     '', 'Te enviaremos el ID y la contraseña antes de comenzar la partida. Mantente atento a este chat.',

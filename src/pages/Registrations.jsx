@@ -7,6 +7,15 @@ import { ErrorBox, Modal, PageHeader, Spinner, StatusBadge } from '../components
 import { dateTime, GAME_LABEL, money, STATUS_LABEL, whatsappUrl } from '../lib/format'
 import { downloadCsv } from '../lib/csv'
 import { publicUrl, removeFile, signedReceiptUrl } from '../lib/storage'
+import { teamConfirmationLink } from '../lib/teamWhatsApp'
+
+function TeamConfirmationButton({ reg, busy = false }) {
+  if (reg.status !== 'approved' || !['mlbb', 'ff'].includes(reg.game_key)) return null
+  const href = teamConfirmationLink(reg)
+  return href && !busy
+    ? <a className="btn btn--sm btn--ok" href={href} target="_blank" rel="noopener noreferrer" aria-label={`Confirmar inscripción de ${reg.team_name} por WhatsApp al capitán`}>Confirmar inscripción</a>
+    : <button type="button" className="btn btn--sm btn--ok" disabled title={busy ? 'Hay una operación en curso.' : 'Comprueba el nombre y el WhatsApp del capitán.'}>Confirmar inscripción</button>
+}
 
 const institutionLabel = (r) => [r.institution === 'UNAP' ? 'UNAP' : r.other_institution ?? 'Otra', r.professional_school].filter(Boolean).join(' · ')
 
@@ -157,7 +166,7 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
       ) : (
         <dl className="kv">
           <dt>Capitán</dt><dd>{reg.captain_name}</dd>
-          <dt>WhatsApp</dt><dd>{reg.captain_whatsapp} · <a href={whatsappUrl(reg.captain_whatsapp)} target="_blank" rel="noopener noreferrer">Abrir chat ↗</a></dd>
+          <dt>WhatsApp</dt><dd>{reg.captain_whatsapp} · <a href={whatsappUrl(reg.captain_whatsapp)} target="_blank" rel="noopener noreferrer">Abrir chat ↗</a>{reg.status === 'approved' && !rejecting && <div className="row-actions" style={{ marginTop: 8 }}><TeamConfirmationButton reg={reg} busy={busy} /></div>}</dd>
           <dt>Institución</dt><dd>{institutionLabel(reg)}</dd>
           <dt>Registrado</dt><dd>{dateTime(reg.created_at)}</dd>
           {reg.rejection_reason && (<><dt>Motivo rechazo</dt><dd>{reg.rejection_reason}</dd></>)}
@@ -319,6 +328,7 @@ export default function Registrations() {
                   <td>
                     <div className="row-actions row-actions--end">
                       <button className="btn btn--sm" onClick={() => setSelected({ reg: r })} type="button">Ver</button>
+                      <TeamConfirmationButton reg={r} busy={busyId === r.id} />
                       {r.status !== 'approved' && <button className="btn btn--sm btn--ok" disabled={busyId === r.id} onClick={() => quickApprove(r)} type="button">Aprobar</button>}
                       {r.status !== 'rejected' && r.status !== 'withdrawn' && <button className="btn btn--sm btn--bad" onClick={() => setSelected({ reg: r, reject: true })} type="button">Rechazar</button>}
                     </div>
