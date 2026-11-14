@@ -4,13 +4,24 @@ import { signedReceiptUrl } from '../lib/storage'
 import { dateTime, money } from '../lib/format'
 import { SOLO_STATUS } from '../lib/tournamentModules'
 
-export default function SoloParticipantDetail({ person, room, isAdmin, hasResults, hasPayments, busy, onClose, onDelete }) {
+export default function SoloParticipantDetail({ person, room, isAdmin, hasResults, hasPayments, busy, onClose, onDelete, onSavePhones }) {
   const [receipt, setReceipt] = useState({ url: null, error: '' })
   const [brokenImage, setBrokenImage] = useState(false)
   const [receiptVersion, setReceiptVersion] = useState(0)
   const [confirming, setConfirming] = useState(false)
   const [confirmation, setConfirmation] = useState('')
   const [deleteError, setDeleteError] = useState('')
+  const [editingPhones, setEditingPhones] = useState(false)
+  const [phonesError, setPhonesError] = useState('')
+  const savePhones = async (event) => {
+    event.preventDefault()
+    if (busy) return
+    setPhonesError('')
+    const values = Object.fromEntries(new FormData(event.currentTarget))
+    const error = await onSavePhones(values)
+    if (error) setPhonesError(error)
+    else setEditingPhones(false)
+  }
   const beforeGame = ['open', 'closed'].includes(room.status)
   const refundable = ['refund_pending', 'refunded'].includes(person.status)
   const canDelete = isAdmin && beforeGame && !hasResults && !hasPayments && !refundable
@@ -39,16 +50,17 @@ export default function SoloParticipantDetail({ person, room, isAdmin, hasResult
     <ErrorBox error={deleteError} />
     <div className="foot-actions"><button type="button" className="btn" disabled={busy} onClick={() => { setConfirming(false); setConfirmation(''); setDeleteError('') }}>Volver</button><button type="submit" className="btn btn--bad" disabled={busy || !canDelete || confirmation !== person.nickname}>{busy ? 'Eliminando…' : 'Eliminar participante'}</button></div>
   </form> : <div className="solo-participant-footer">
-    {isAdmin && <><span className="hint">{!beforeGame ? 'Solo se elimina antes de iniciar la partida.' : hasResults || hasPayments || refundable ? 'Con resultados, pagos o devoluciones asociados, la inscripción debe conservarse.' : 'Puedes eliminar esta inscripción sin borrar la sala.'}</span><button type="button" className="btn btn--ghost solo-delete-participant" disabled={busy || !canDelete} onClick={() => setConfirming(true)}>Eliminar participante</button></>}
+    {isAdmin && <><span className="hint">{!beforeGame ? 'Solo se elimina antes de iniciar la partida.' : hasResults || hasPayments || refundable ? 'Con resultados, pagos o devoluciones asociados, la inscripción debe conservarse.' : 'Puedes eliminar esta inscripción sin borrar la sala.'}</span><button type="button" className="btn btn--ghost solo-delete-participant" disabled={busy || !canDelete || editingPhones} onClick={() => setConfirming(true)}>Eliminar participante</button></>}
   </div>
 
   return <Modal title={person.nickname} wide onClose={() => !busy && onClose()} footer={footer}>
     <div className="solo-participant-summary"><span className={`tm-status tm-status--${person.status}`}>{SOLO_STATUS[person.status]}</span><span className="solo-slot">{person.slot != null ? `Slot #${person.slot}` : 'Sin slot asignado'}</span><strong>{money(person.amount_due)}</strong></div>
     <dl className="kv">
       <dt>Sala</dt><dd>{room.name}</dd>
-      <dt>Participante</dt><dd>{person.full_name}</dd>
+      <dt>Titular del comprobante</dt><dd>{person.full_name}</dd>
       <dt>Nickname</dt><dd>{person.nickname}</dd>
-      <dt>WhatsApp</dt><dd>{person.whatsapp}</dd>
+      <dt>WhatsApp de contacto</dt><dd>{person.whatsapp}</dd>
+      <dt>Yape para premios</dt><dd>{person.prize_yape_phone || 'No indicado'}</dd>
       <dt>Institución</dt><dd>{person.institution?.trim() || 'No indicado'}</dd>
       <dt>Carrera</dt><dd>{person.professional_school?.trim() || 'No indicado'}</dd>
       <dt>Registrado</dt><dd>{dateTime(person.created_at)}</dd>
@@ -56,6 +68,15 @@ export default function SoloParticipantDetail({ person, room, isAdmin, hasResult
       {person.game_player_id && <><dt>ID anterior</dt><dd>{person.game_player_id}</dd></>}
       {person.reason && <><dt>Observación</dt><dd>{person.reason}</dd></>}
     </dl>
+    {isAdmin && (editingPhones ? <form onSubmit={savePhones}>
+      <div className="form-row">
+        <label className="field">WhatsApp de contacto<input name="whatsapp" type="tel" inputMode="numeric" pattern="[0-9]{8,15}" minLength={8} maxLength={15} required defaultValue={person.whatsapp} disabled={busy} /></label>
+        <label className="field">Yape para premios<input name="prize_yape_phone" type="tel" inputMode="numeric" pattern="[0-9]{8,15}" minLength={8} maxLength={15} required defaultValue={person.prize_yape_phone || ''} disabled={busy} /></label>
+      </div>
+      <p className="hint">Usa de 8 a 15 dígitos, con código de país si corresponde. Cambiar WhatsApp no cambia automáticamente el Yape. El titular del comprobante es quien pagó la inscripción; confirma el destinatario del premio antes de transferir.</p>
+      <ErrorBox error={phonesError} />
+      <div className="foot-actions"><button type="button" className="btn" disabled={busy} onClick={() => setEditingPhones(false)}>Cancelar</button><button className="btn btn--primary" disabled={busy}>Guardar números</button></div>
+    </form> : <button type="button" className="btn btn--sm" disabled={busy || confirming} onClick={() => setEditingPhones(true)}>Editar números</button>)}
     <section className="solo-participant-receipt"><h3>Comprobante de pago</h3>
       {!person.receipt_path ? <p className="hint">Sin comprobante.</p> : <>
         {!receipt.url && !receipt.error && <Spinner label="Cargando comprobante…" />}

@@ -19,6 +19,9 @@ try {
   `)
   const files = ['01_schema.sql', '02_seed.sql', ...fs.readdirSync(root + 'migrations').filter((x) => x.endsWith('.sql')).sort().map((x) => 'migrations/' + x)]
   for (const file of files) {
+    if (file === 'migrations/021_solo_prize_yape_phone.sql') {
+      await db.exec(fs.readFileSync(root + 'tests/solo_prize_phone_before.sql', 'utf8'))
+    }
     if (file === 'migrations/013_solo_registration_slots.sql') {
       await db.exec(fs.readFileSync(root + 'tests/solo_slots_before_migration.sql', 'utf8'))
     }
@@ -43,13 +46,17 @@ try {
       console.log('PASS existing_solo_drafts_hidden')
     }
     console.log('OK', file)
+    if (file === 'migrations/021_solo_prize_yape_phone.sql') {
+      await db.exec(fs.readFileSync(root + 'tests/solo_prize_phone_after.sql', 'utf8'))
+      console.log('PASS solo_prize_phone_backfill')
+    }
   }
   await db.exec(`
     insert into auth.users values ('00000000-0000-0000-0000-000000000001','admin@test.local'),('00000000-0000-0000-0000-000000000002','reviewer@test.local'),('00000000-0000-0000-0000-000000000003','editor@test.local');
     insert into admins(user_id,email,role) select id,email,case when email like 'reviewer%' then 'revisor_arbitro' when email like 'editor%' then 'editor' else 'admin' end from auth.users;
     set request.jwt.claim.sub='00000000-0000-0000-0000-000000000001';
   `)
-  for (const file of ['tournament_modules.sql', 'tournament_permissions.sql', 'tournament_archive_roster.sql', 'solo_cancellations.sql', 'solo_room_deletion.sql', 'solo_bulk_results.sql', 'solo_slots.sql', 'public_solo_slots.sql', 'completed_solo_room_deletion.sql', 'solo_room_announcements.sql', 'solo_registration_deletion.sql', 'solo_room_schedule.sql', 'solo_room_pause.sql', 'solo_optional_education.sql']) {
+  for (const file of ['tournament_modules.sql', 'tournament_permissions.sql', 'tournament_archive_roster.sql', 'solo_cancellations.sql', 'solo_room_deletion.sql', 'solo_bulk_results.sql', 'solo_slots.sql', 'public_solo_slots.sql', 'completed_solo_room_deletion.sql', 'solo_room_announcements.sql', 'solo_registration_deletion.sql', 'solo_room_schedule.sql', 'solo_room_pause.sql', 'solo_optional_education.sql', 'solo_prize_phone.sql']) {
     await db.exec(fs.readFileSync(root + 'tests/' + file, 'utf8'))
     console.log('PASS', file)
   }
