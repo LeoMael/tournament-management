@@ -25,11 +25,11 @@ export function soloAccessLink(room, person, access) {
   if (!phone || !hasSavedAccess(room, access)) return null
   const time = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' }).format(new Date(room.scheduled_at))
   const message = [
-    'Hola, ' + person.nickname + '. Estos son tus datos de acceso a «' + room.name + '»:',
+    'Hola, ' + person.nickname + '. Estos son tus datos de acceso:',
+    '', '*TU SLOT ASIGNADO: ' + String(person.slot).padStart(2, '0') + '*',
     '', 'Sala: ' + room.name, 'Fecha y hora: ' + time + ' (Perú)',
     'ID: ' + access.game_room_id, 'Contraseña: ' + access.room_password,
-    'Tu slot: ' + String(person.slot).padStart(2, '0'),
-    '', 'Ubícate en tu slot asignado y evita compartir el acceso.',
+    '', 'Ubícate únicamente en ese slot y evita compartir el acceso.',
   ].join('\n')
   return 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message)
 }
@@ -41,7 +41,7 @@ export function soloConfirmationLink(room, person) {
   const message = [
     'Hola, ' + person.nickname + '. Tu inscripción a «' + room.name + '» fue aprobada. ✓',
     '', 'Fecha y hora: ' + time + ' (Perú)',
-    'Tu slot: ' + String(person.slot).padStart(2, '0'),
+    '', '*TU SLOT ASIGNADO: ' + String(person.slot).padStart(2, '0') + '*',
     '', 'Te enviaremos el ID y la contraseña antes de comenzar la partida. Mantente atento a este chat.',
   ].join('\n')
   return 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message)

@@ -68,10 +68,11 @@ export default function SoloRoomAccess({ room, editionId, onSaved }) {
   </form>
 }
 
-export function SoloWhatsAppButton({ room, person, access }) {
+export function SoloWhatsAppButton({ room, person, access, onConfirmClick }) {
   if (person.status !== 'approved' || !['open', 'closed', 'playing'].includes(room.status)) return null
   const { href, label } = soloWhatsAppAction(room, person, access)
+  const confirmation = label === 'Confirmar inscripción'
   return href
-    ? <a className="btn btn--sm solo-send-access" href={href} target="_blank" rel="noopener noreferrer" aria-label={label + ' por WhatsApp a ' + person.nickname}>{label}</a>
+    ? <><a className="btn btn--sm solo-send-access" href={href} target="_blank" rel="noopener noreferrer" aria-label={label + ' por WhatsApp a ' + person.nickname} onClick={confirmation ? () => onConfirmClick?.(person, room) : undefined}>{label}</a>{confirmation && <span className="solo-confirmation-count" title="Clics en Confirmar inscripción" aria-label={`${person.confirmation_click_count ?? 0} clics en Confirmar inscripción`}>{person.confirmation_click_count ?? 0}</span>}</>
     : <button type="button" className="btn btn--sm solo-send-access" disabled title="Comprueba que el jugador tenga teléfono válido y slot asignado.">{label}</button>
 }

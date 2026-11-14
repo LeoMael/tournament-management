@@ -10,3 +10,10 @@
 .solo-contact-access .solo-send-access:focus-visible { outline: 2px solid #75a4ff; outline-offset: 3px; }
 .solo-access-error { color: #ff929c; font-size: 12px; }
 @media (max-width: 650px) { .solo-room-access__fields { grid-template-columns: 1fr; } .solo-room-access__fields > button { justify-self: start; } }
+.solo-confirmation-count {
+  min-width: 1.4rem;
+  text-align: center;
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #94a3b8);
+}
