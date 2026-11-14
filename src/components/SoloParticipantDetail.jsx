@@ -49,7 +49,8 @@ export default function SoloParticipantDetail({ person, room, isAdmin, hasResult
       <dt>Participante</dt><dd>{person.full_name}</dd>
       <dt>Nickname</dt><dd>{person.nickname}</dd>
       <dt>WhatsApp</dt><dd>{person.whatsapp}</dd>
-      <dt>Institución</dt><dd>{person.institution || 'Sin institución'}{person.professional_school ? ` · ${person.professional_school}` : ''}</dd>
+      <dt>Institución</dt><dd>{person.institution?.trim() || 'No indicado'}</dd>
+      <dt>Carrera</dt><dd>{person.professional_school?.trim() || 'No indicado'}</dd>
       <dt>Registrado</dt><dd>{dateTime(person.created_at)}</dd>
       {person.reviewed_at && <><dt>Revisado</dt><dd>{dateTime(person.reviewed_at)}</dd></>}
       {person.game_player_id && <><dt>ID anterior</dt><dd>{person.game_player_id}</dd></>}
