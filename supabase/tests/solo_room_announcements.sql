@@ -15,7 +15,7 @@ begin
   select to_jsonb(p) into visible from public_solo_rooms p where id=room;
   if visible is null or visible->>'status'<>'draft' or not (visible->>'is_announced')::boolean or (visible->>'taken')::int<>0 then raise exception 'TEST: contrato anuncio inválido'; end if;
   if (select array_agg(k order by k) from jsonb_object_keys(visible) k) is distinct from
-     array['booyah_reward','capacity','closes_at','edition_id','entry_price','id','is_announced','kill_reward','name','scheduled_at','status','taken']::text[] then raise exception 'TEST: campos públicos no esperados'; end if;
+     array['booyah_reward','capacity','closes_at','edition_id','entry_price','id','is_announced','is_paused','kill_reward','name','scheduled_at','status','taken']::text[] then raise exception 'TEST: campos públicos no esperados'; end if;
   if not exists(select 1 from audit_log where table_name='solo_rooms' and op='UPDATE' and row_key=room::text and new_data->>'is_announced'='true') then raise exception 'TEST: anuncio sin auditoría'; end if;
   path:=gen_random_uuid()::text||'.png';
   insert into storage.objects(bucket_id,name,metadata) values('receipts',path,'{"mimetype":"image/png","size":100}');

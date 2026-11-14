@@ -16,5 +16,5 @@ export async function rpc(name, args = {}) {
   return data
 }
 
-export const SOLO_STATUS = { draft: 'Borrador', open: 'Inscripciones abiertas', closed: 'Inscripciones cerradas', playing: 'En juego', finished: 'Finalizada', cancelled: 'Cancelada', pending: 'Por revisar', approved: 'Aprobada', rejected: 'Rechazada', refund_pending: 'Devolución pendiente', refunded: 'Devuelta' }
+export const SOLO_STATUS = { draft: 'Borrador', open: 'Inscripciones abiertas', paused: 'Inscripciones aún no abiertas', closed: 'Inscripciones cerradas', playing: 'En juego', finished: 'Finalizada', cancelled: 'Cancelada', pending: 'Por revisar', approved: 'Aprobada', rejected: 'Rechazada', refund_pending: 'Devolución pendiente', refunded: 'Devuelta' }
 export const MIGRATION_MESSAGE = 'Esta función requiere las migraciones 007 a 010. Revisa el historial en Configuración.'

@@ -18,7 +18,7 @@ Pensado para desarrollo: pocos archivos, todos en el SQL Editor y en este orden.
 4. **Authentication → Users → Add user** (email + contraseña fuerte, Auto confirm). Solo para el primer admin.
 5. Ejecuta `03_admin.sql` con tu correo.
 5b. Despliega la función `manage-team` (sección siguiente) para gestionar el equipo desde el panel.
-5c. Ejecuta las migraciones SQL `001` a `018` en orden numérico. Consulta sus guías antes de aplicarlas.
+5c. Ejecuta las migraciones SQL `001` a `020` en orden numérico. Consulta sus guías antes de aplicarlas.
 6. **Project Settings → API**: copia la URL y la clave pública (`anon` o `publishable`) a los `.env` de
    `admin-panel/` y `esports-tournament-manager/`. **Nunca** uses la `service_role`.
 
@@ -102,3 +102,11 @@ Aplicar `migrations/017_solo_room_announcements.sql` después de 016. `is_announ
 ## Eliminar inscripciones Solo de prueba (018)
 
 Aplicar `migrations/018_delete_solo_registration.sql` después de 017. «Ver detalle» muestra los datos y comprobante del participante, con eliminación exclusiva del administrador antes de jugar y sin resultados ni pagos asociados. Consulta la [guía de 018](migrations/018_delete_solo_registration.md).
+
+## Editar horario de salas Solo (019)
+
+Aplicar `migrations/019_solo_room_schedule.sql` después de 018. «Editar horario» permite ajustar el cierre y la fecha de partida antes de jugar, sin alterar las condiciones económicas ni reabrir salas cerradas manualmente. Consulta la [guía de 019](migrations/019_solo_room_schedule.md).
+
+## Pausar y abrir inscripciones Solo (020)
+
+Aplicar `migrations/020_pause_solo_registrations.sql` después de 019. El administrador puede pausar una sala abierta y volver a recibir inscripciones mediante el mismo botón «Abrir inscripciones», conservando toda la sala. «Cerrar inscripciones» mantiene su función de preparación para jugar. Consulta la [guía de 020](migrations/020_pause_solo_registrations.md) para el contrato público compatible con anuncios.
