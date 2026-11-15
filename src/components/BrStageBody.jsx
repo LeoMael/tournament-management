@@ -5,6 +5,7 @@ import { battleRoyaleTotals } from '../lib/standings'
 import { resolveSlots } from '../lib/bracket'
 import { lobbyState, roomOfStage, roomState, STATE_LABEL } from '../lib/rooms'
 import { shortDateTime } from '../lib/format'
+import { squadAiPrompt } from '../lib/squadResultImport'
 
 // Fase Battle Royale: un árbol a la izquierda (tabla acumulada por sala y, por cada partida, sus salas)
 // y a la derecha lo que se elige. Así cada sala se ve por separado.
@@ -21,7 +22,7 @@ export default function BrStageBody({ stage, matches, results, teams, teamName, 
   const toast = useToast()
   const [copiedAi, setCopiedAi] = useState(false)
 
-  const copyRoomForAi = async (room) => {
+  const copyRoomForAi = async (room, match) => {
     const roomTeams = teams.filter((t) => roomOf(t.id) === room)
     if (!roomTeams.length) return toast.error('No hay equipos en esta sala.')
 
@@ -39,30 +40,9 @@ export default function BrStageBody({ stage, matches, results, teams, teamName, 
       playersByTeam.set(p.registration_id, [...(playersByTeam.get(p.registration_id) ?? []), p])
     })
 
-    const sorted = [...roomTeams].sort((a, b) => (slots[a.id] ?? 99) - (slots[b.id] ?? 99) || teamName(a.id).localeCompare(teamName(b.id)))
-
-    const listLines = sorted.map((t) => {
-      const slotNum = slots[t.id] ? `Slot #${slots[t.id]}` : 'Slot s/n'
-      const pList = playersByTeam.get(t.id)
-      const playerStr = (pList && pList.length > 0)
-        ? pList.map((p) => `${p.nickname}${p.is_substitute ? ' (Suplente)' : ''}`).join(', ')
-        : 'Sin jugadores registrados'
-      return `${slotNum} · ${teamName(t.id)}: ${playerStr}`
-    }).join('\n')
-
-    const promptText = `Actúa como árbitro asistente de torneos de Free Fire.
-Te adjunto la captura de la pantalla final de la partida.
-A continuación tienes la lista oficial de escuadras inscritas en esta sala con sus integrantes y suplentes registrados:
-
-${listLines}
-
-Instrucciones:
-1. Analiza la imagen adjunta con la tabla o resumen final de la partida.
-2. Identifica a qué escuadra corresponde cada puesto según los nicknames de sus integrantes (respetando símbolos especiales o tags).
-3. Suma las bajas (kills) totales de cada escuadra.
-4. Devuélveme el resultado únicamente en esta tabla de texto para transcribirlo rápidamente al panel:
-
-Slot | Equipo | Puesto | Kills`
+    const promptText = squadAiPrompt({ stage, match, room, teams: roomTeams.map((t) => ({
+      id: t.id, name: teamName(t.id), slot: slots[t.id], players: playersByTeam.get(t.id) ?? [],
+    })) })
 
     try {
       if (navigator?.clipboard?.writeText) {
@@ -144,7 +124,7 @@ Slot | Equipo | Puesto | Kills`
             <button
               className={`btn btn--sm ${copiedAi ? 'btn--ai-done' : 'btn--ai'}`}
               type="button"
-              onClick={() => copyRoomForAi(room)}
+              onClick={() => copyRoomForAi(room, match)}
               title="Copiar lista de jugadores (titulares y suplentes) y prompt para consultar a la IA"
             >
               {copiedAi ? 'Copiado para IA' : 'Copiar para IA'}

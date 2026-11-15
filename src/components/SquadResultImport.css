@@ -1,0 +1,8 @@
+.ff-import-content{display:flex;flex-direction:column;gap:16px;min-width:0}
+.ff-import-content>*{flex-shrink:0}
+.ff-import-content textarea{width:100%;min-height:150px;resize:vertical;font-family:var(--mono);font-size:12px}
+.ff-import-content>.btn{align-self:flex-start}
+.ff-import-table{min-height:180px;max-height:50vh;overflow:auto}
+.ff-import-table table{min-width:820px}
+.ff-import-table th{position:sticky;top:0;background:var(--surface);z-index:1}
+.ff-import-table td small{display:block;color:var(--muted);font-size:12px;margin-top:4px}

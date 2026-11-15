@@ -3,6 +3,8 @@ import { supabase } from '../supabaseClient'
 import { useToast } from '../context/ToastContext'
 import { Modal } from './ui'
 import LobbyBoard from './LobbyBoard'
+import SquadResultImport from './SquadResultImport'
+import { squadAiPrompt } from '../lib/squadResultImport'
 import { brPoints, resolveSlots } from '../lib/bracket'
 import { lobbyState, roomOfStage, roomState, STATE_LABEL } from '../lib/rooms'
 
@@ -17,23 +19,28 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
 
   // Cargar jugadores para todos los equipos de la fase
   const [playersByTeam, setPlayersByTeam] = useState(new Map())
+  const [playersLoading, setPlayersLoading] = useState(true)
+  const [playersError, setPlayersError] = useState('')
   useEffect(() => {
     const ids = teams.map((t) => t.id)
-    if (!ids.length) return
+    if (!ids.length) { setPlayersLoading(false); return }
     let active = true
+    setPlayersLoading(true); setPlayersError('')
     supabase
       .from('players')
       .select('registration_id, slot, is_substitute, nickname, game_player_id')
       .in('registration_id', ids)
       .order('slot')
       .then(({ data, error }) => {
-        if (!active || error || !data) return
+        if (!active) return
+        setPlayersLoading(false)
+        if (error || !data) { setPlayersError('No se pudieron cargar los integrantes. Cierra y vuelve a abrir esta partida.'); return }
         const map = new Map()
         data.forEach((p) => {
           map.set(p.registration_id, [...(map.get(p.registration_id) ?? []), p])
         })
         setPlayersByTeam(map)
-      })
+      }).catch(() => { if (active) { setPlayersLoading(false); setPlayersError('No se pudieron cargar los integrantes. Vuelve a abrir la partida.') } })
     return () => { active = false }
   }, [teams])
 
@@ -47,11 +54,42 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
   })
   const [kills, setKills] = useState(() => Object.fromEntries(mine.map((r) => [r.registration_id, r.kills])))
   const [busy, setBusy] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importSort, setImportSort] = useState(false)
+  const [reviewPending, setReviewPending] = useState({})
   const slots = resolveSlots(teams, roomOf, stage.config?.slot_of)
 
   const pointsOf = (place, k) => brPoints(place, k, stage.config)
   const inRoom = (room) => teams.filter((t) => roomOf(t.id) === room)
   const list = Array.from({ length: rooms }, (_, i) => i + 1)
+  const ff = stage.game_key === 'ff' && stage.type === 'battle_royale'
+  const importContext = { stage, match, room: tab, teams: inRoom(tab).map((t) => ({ id: t.id, name: t.team_name, slot: slots[t.id], players: playersByTeam.get(t.id) ?? [] })) }
+  const roomDone = roomState(stage, match.id, tab, results, teams).state === 'done'
+  const copyForAi = async () => {
+    if (playersLoading || playersError) { toast.error(playersError || 'Espera a que carguen los integrantes.'); return false }
+    try {
+      const prompt = squadAiPrompt(importContext)
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(prompt)
+      else {
+        const field = document.createElement('textarea')
+        field.value = prompt; field.style.position = 'fixed'; field.style.opacity = '0'
+        document.body.appendChild(field)
+        try { field.focus(); field.select(); if (!document.execCommand('copy')) throw new Error('No se pudo copiar el prompt.') }
+        finally { field.remove() }
+      }
+      return true
+    } catch (error) { toast.error(error.message || 'No se pudo copiar el prompt.'); return false }
+  }
+  const applyImport = (draft) => {
+    if (busy || !ff || roomDone) return 'Esta sala ya está terminada o no admite cargar el borrador.'
+    setPlacements((prev) => ({ ...prev, ...draft.placements }))
+    setKills((prev) => ({ ...prev, ...draft.kills }))
+    setReviewPending((prev) => ({ ...prev, ...draft.pending }))
+    setImportSort(true)
+    setImportOpen(false)
+    toast.success('Borrador cargado. Corrige los pendientes antes de guardar la partida.')
+    return null
+  }
 
   // Estado de cada sala con lo que hay cargado ahora (antes de guardar).
   const draftResults = teams
@@ -59,6 +97,14 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
     .map((t) => ({ match_id: match.id, registration_id: t.id }))
 
   const save = async () => {
+    if (busy || importOpen) return
+    if (teams.some((t) => reviewPending[t.id])) return toast.error('Resuelve y confirma los equipos importados pendientes, también en las otras salas.')
+    for (const t of teams) {
+      const p = placements[t.id]
+      if (p === '' || p == null) continue
+      const k = Number(kills[t.id] ?? 0)
+      if (!Number.isInteger(Number(p)) || Number(p) < 1 || Number(p) > 12 || kills[t.id] === '' || !Number.isInteger(k) || k < 0 || k > 99) return toast.error('Revisa puestos (1 a 12) y kills enteras (0 a 99) antes de guardar.')
+    }
     // Validar puestos duplicados en todas las salas
     for (const r of list) {
       const roomTeams = inRoom(r)
@@ -112,6 +158,7 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
   const handleClearRoom = () => {
     const roomTeams = inRoom(tab)
     if (!window.confirm(`¿Limpiar los puestos y kills de la Sala ${tab}?`)) return
+    setReviewPending((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !roomTeams.some((t) => t.id === id))))
     setPlacements((prev) => {
       const next = { ...prev }
       roomTeams.forEach((t) => { delete next[t.id] })
@@ -130,7 +177,7 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
       onClose={onClose}
       wide
       actions={
-        <button className="btn btn--primary" disabled={busy} onClick={save} type="button">
+        <button className="btn btn--primary" disabled={busy || importOpen} onClick={save} type="button">
           Guardar partida
         </button>
       }
@@ -147,7 +194,7 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
                 role="tab"
                 aria-selected={tab === r}
                 className={`seg-btn ${tab === r ? 'seg-btn--on' : ''}`}
-                onClick={() => setTab(r)}
+                onClick={() => { setTab(r); setImportOpen(false) }}
               >
                 Sala {r}
                 <span className="seg-count">{count}/{total}</span>
@@ -161,7 +208,9 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
         </div>
       )}
 
-      <LobbyBoard
+      {ff && playersLoading && <p className="hint">Cargando integrantes para preparar la nómina de IA…</p>}
+      {ff && playersError && <p className="error-box" role="alert">{playersError}</p>}
+      {importOpen ? <SquadResultImport key={tab} context={importContext} readOnly={roomDone} onBack={() => setImportOpen(false)} onApply={applyImport} /> : <LobbyBoard
         teams={inRoom(tab).map((t) => ({
           id: t.id,
           name: t.team_name,
@@ -173,9 +222,15 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
         pointsOf={pointsOf}
         config={stage.config}
         onPlacement={(id, val) => setPlacements((prev) => ({ ...prev, [id]: val === '' ? '' : Number(val) }))}
-        onKills={(id, val) => setKills((prev) => ({ ...prev, [id]: Math.max(0, Math.min(99, Number(val) || 0)) }))}
+        onKills={(id, val) => setKills((prev) => ({ ...prev, [id]: val === '' ? '' : Math.max(0, Math.min(99, Number(val) || 0)) }))}
         onClearRoom={handleClearRoom}
-      />
+        onCopyForAi={ff ? copyForAi : undefined}
+        onImport={ff ? () => setImportOpen(true) : undefined}
+        aiLoading={playersLoading || Boolean(playersError) || busy || !inRoom(tab).length}
+        reviewPending={reviewPending}
+        onReview={(id) => setReviewPending((prev) => ({ ...prev, [id]: false }))}
+        initialSort={importSort ? 'place' : 'slot'}
+      />}
     </Modal>
   )
 }

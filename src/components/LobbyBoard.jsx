@@ -25,58 +25,28 @@ export default function LobbyBoard({
   onPlacement,
   onKills,
   onClearRoom,
+  onCopyForAi,
+  onImport,
+  aiLoading,
+  reviewPending = {},
+  onReview,
+  initialSort = 'slot',
 }) {
   const toast = useToast()
   const [query, setQuery] = useState('')
-  const [sortBy, setSortBy] = useState('slot') // 'slot' | 'place'
+  const [sortBy, setSortBy] = useState(initialSort) // 'slot' | 'place'
   const [copiedAi, setCopiedAi] = useState(false)
 
   const handleCopyForAI = useCallback(async () => {
-    const sorted = [...teams].sort((a, b) => (a.slot ?? 99) - (b.slot ?? 99) || a.name.localeCompare(b.name))
-
-    const listLines = sorted.map((t) => {
-      const slotLabel = t.slot ? `Slot #${t.slot}` : 'Slot s/n'
-      const playerList = (t.players && t.players.length > 0)
-        ? t.players.map((p) => `${p.nickname}${p.is_substitute ? ' (Suplente)' : ''}`).join(', ')
-        : 'Sin jugadores registrados'
-      return `${slotLabel} · ${t.name}: ${playerList}`
-    }).join('\n')
-
-    const promptText = `Actúa como árbitro asistente de torneos de Free Fire.
-Te adjunto la captura de la pantalla final de la partida.
-A continuación tienes la lista oficial de escuadras inscritas en esta sala con sus integrantes y suplentes registrados:
-
-${listLines}
-
-Instrucciones:
-1. Analiza la imagen adjunta con la tabla o resumen final de la partida.
-2. Identifica a qué escuadra corresponde cada puesto según los nicknames de sus integrantes (respetando símbolos especiales o tags).
-3. Suma las bajas (kills) totales de cada escuadra.
-4. Devuélveme el resultado únicamente en esta tabla de texto para transcribirlo rápidamente al panel:
-
-Slot | Equipo | Puesto | Kills`
-
     try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(promptText)
-      } else {
-        const ta = document.createElement('textarea')
-        ta.value = promptText
-        ta.style.position = 'fixed'
-        ta.style.opacity = '0'
-        document.body.appendChild(ta)
-        ta.focus()
-        ta.select()
-        document.execCommand('copy')
-        document.body.removeChild(ta)
-      }
+      if (!await onCopyForAi()) return
       setCopiedAi(true)
       toast.success('Lista y prompt copiados al portapapeles.')
       setTimeout(() => setCopiedAi(false), 3000)
     } catch {
       toast.error('No se pudo copiar automáticamente al portapapeles.')
     }
-  }, [teams, toast])
+  }, [onCopyForAi, toast])
 
   const posTable = config?.placement_points ?? DEFAULT_PLACEMENT_POINTS
   const killPts = config?.kill_points ?? 1
@@ -181,14 +151,16 @@ Slot | Equipo | Puesto | Kills`
             </button>
           </div>
 
-          <button
+          {onCopyForAi && <button
             type="button"
             className={`btn btn--sm ${copiedAi ? 'btn--ai-done' : 'btn--ai'}`}
             onClick={handleCopyForAI}
+            disabled={aiLoading}
             title="Copiar prompt y lista de jugadores (titulares y suplentes) para enviar a la IA con la captura de la partida"
           >
             {copiedAi ? 'Copiado para IA' : 'Copiar para IA'}
-          </button>
+          </button>}
+          {onImport && <button type="button" className="btn btn--sm" disabled={aiLoading} onClick={onImport}>Importar resultados de IA</button>}
 
           <button
             type="button"
@@ -251,6 +223,7 @@ Slot | Equipo | Puesto | Kills`
                   <td>
                     <div className="tb-team-info">
                       <strong className="tb-team-name">{t.name}</strong>
+                      {reviewPending[t.id] && <div className="hint">Pendiente: revisa puesto y kills <button type="button" className="btn btn--sm" disabled={!Number.isInteger(Number(placements[t.id])) || Number(placements[t.id]) < 1 || Number(placements[t.id]) > 12 || kills[t.id] === '' || !Number.isInteger(Number(kills[t.id]))} onClick={() => onReview(t.id)}>Confirmar revisión</button></div>}
                       <div className="tb-nicks" title="Integrantes registrados de la escuadra">
                         {t.players && t.players.length > 0 ? (
                           t.players.map((p, idx) => (
@@ -301,7 +274,7 @@ Slot | Equipo | Puesto | Kills`
                     </div>
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    {hasValidPlace ? (
+                    {hasValidPlace && !reviewPending[t.id] ? (
                       <div className="tb-pts-box">
                         <strong className={`tb-pts-total ${isBooyah ? 'tb-pts-total--gold' : ''}`}>
                           {totalPts}
