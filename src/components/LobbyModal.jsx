@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { Modal } from './ui'
 import LobbyBoard from './LobbyBoard'
 import SquadResultImport from './SquadResultImport'
+import SquadRoomAccess from './SquadRoomAccess'
 import { squadAiPrompt } from '../lib/squadResultImport'
 import { brPoints, resolveSlots } from '../lib/bracket'
 import { lobbyState, roomOfStage, roomState, STATE_LABEL } from '../lib/rooms'
@@ -208,6 +209,7 @@ export default function LobbyModal({ match, stage, teams, results, initialRoom =
         </div>
       )}
 
+      {ff && !importOpen && <SquadRoomAccess key={`${match.id}-${tab}`} stage={stage} match={match} room={tab} teams={inRoom(tab)} slots={slots} closed={roomDone} busy={busy} />}
       {ff && playersLoading && <p className="hint">Cargando integrantes para preparar la nómina de IA…</p>}
       {ff && playersError && <p className="error-box" role="alert">{playersError}</p>}
       {importOpen ? <SquadResultImport key={tab} context={importContext} readOnly={roomDone} onBack={() => setImportOpen(false)} onApply={applyImport} /> : <LobbyBoard

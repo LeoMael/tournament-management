@@ -7,15 +7,7 @@ import { ErrorBox, Modal, PageHeader, Spinner, StatusBadge } from '../components
 import { dateTime, GAME_LABEL, money, STATUS_LABEL, whatsappUrl } from '../lib/format'
 import { downloadCsv } from '../lib/csv'
 import { publicUrl, removeFile, signedReceiptUrl } from '../lib/storage'
-import { teamConfirmationLink } from '../lib/teamWhatsApp'
-
-function TeamConfirmationButton({ reg, busy = false }) {
-  if (reg.status !== 'approved' || !['mlbb', 'ff'].includes(reg.game_key)) return null
-  const href = teamConfirmationLink(reg)
-  return href && !busy
-    ? <a className="btn btn--sm btn--ok" href={href} target="_blank" rel="noopener noreferrer" aria-label={`Confirmar inscripción de ${reg.team_name} por WhatsApp al capitán`}>Confirmar inscripción</a>
-    : <button type="button" className="btn btn--sm btn--ok" disabled title={busy ? 'Hay una operación en curso.' : 'Comprueba el nombre y el WhatsApp del capitán.'}>Confirmar inscripción</button>
-}
+import TeamConfirmationButton from '../components/TeamConfirmationButton'
 
 const institutionLabel = (r) => [r.institution === 'UNAP' ? 'UNAP' : r.other_institution ?? 'Otra', r.professional_school].filter(Boolean).join(' · ')
 
@@ -60,7 +52,7 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
   const [note, setNote] = useState(reg.observation ?? '')
   const [savedNote, setSavedNote] = useState(reg.observation ?? '')
   const [imgBroken, setImgBroken] = useState(false)
-  const [edit, setEdit] = useState({ team_name: reg.team_name, captain_name: reg.captain_name, captain_whatsapp: reg.captain_whatsapp })
+  const [edit, setEdit] = useState({ team_name: reg.team_name, captain_name: reg.captain_name, captain_whatsapp: reg.captain_whatsapp, prize_yape_phone: reg.prize_yape_phone ?? '' })
   const isPdf = reg.receipt_path?.endsWith('.pdf')
   const individualPayments = reg.registration_origin === 'individual'
   const logo = publicUrl('team-logos', reg.logo_path)
@@ -98,18 +90,27 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
 
   const saveEdit = async () => {
     const wa = edit.captain_whatsapp.replace(/\D/g, '')
+    const yape = edit.prize_yape_phone.trim()
+    if (!Object.hasOwn(reg, 'prize_yape_phone')) return toast.error('Aplica la migración 025 antes de editar estos datos.')
     if (edit.team_name.trim().length < 3 || edit.captain_name.trim().length < 3 || !/^\d{8,15}$/.test(wa)) {
       return toast.error('Datos inválidos.')
     }
+    if (!/^\d{8,15}$/.test(yape)) return toast.error('Yape para premios inválido: usa de 8 a 15 dígitos sin espacios ni separadores.')
     setBusy(true)
     const { error } = await supabase.from('registrations').update({
-      team_name: edit.team_name.trim(), captain_name: edit.captain_name.trim(), captain_whatsapp: wa,
+      team_name: edit.team_name.trim(), captain_name: edit.captain_name.trim(), captain_whatsapp: wa, prize_yape_phone: yape,
     }).eq('id', reg.id)
     setBusy(false)
     if (error) return toast.error(error.code === '23505' ? 'Ya existe un equipo con ese nombre.' : error.message)
     toast.success('Datos actualizados.')
     onChanged()
     onClose()
+  }
+
+  const copyPrizeYape = async () => {
+    if (!/^[0-9]{8,15}$/.test(reg.prize_yape_phone ?? '')) return
+    try { await navigator.clipboard.writeText(reg.prize_yape_phone); toast.success('Yape para premios copiado.') }
+    catch { toast.error('No se pudo copiar. Selecciona el número para copiarlo manualmente.') }
   }
 
   const remove = async () => {
@@ -156,8 +157,9 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
       {editing ? (
         <div className="form-row">
           <label className="field"><span>Equipo</span><input value={edit.team_name} maxLength={40} onChange={(e) => setEdit({ ...edit, team_name: e.target.value })} /></label>
-          <label className="field"><span>Capitán</span><input value={edit.captain_name} maxLength={80} onChange={(e) => setEdit({ ...edit, captain_name: e.target.value })} /></label>
-          <label className="field"><span>WhatsApp</span><input value={edit.captain_whatsapp} maxLength={15} onChange={(e) => setEdit({ ...edit, captain_whatsapp: e.target.value })} /></label>
+          <label className="field"><span>Titular del comprobante</span><input value={edit.captain_name} maxLength={80} onChange={(e) => setEdit({ ...edit, captain_name: e.target.value })} /></label>
+          <label className="field"><span>WhatsApp de contacto</span><input type="tel" inputMode="numeric" value={edit.captain_whatsapp} maxLength={15} onChange={(e) => setEdit({ ...edit, captain_whatsapp: e.target.value })} /></label>
+          <label className="field"><span>Yape para premios</span><input type="tel" inputMode="numeric" value={edit.prize_yape_phone} maxLength={15} onChange={(e) => setEdit({ ...edit, prize_yape_phone: e.target.value })} /></label>
           <div style={{ display: 'flex', gap: '.5rem', alignItems: 'end' }}>
             <button className="btn btn--primary" disabled={busy} onClick={saveEdit} type="button">Guardar</button>
             <button className="btn" onClick={() => setEditing(false)} type="button">Cancelar</button>
@@ -165,13 +167,15 @@ function Detail({ reg, startRejecting = false, onReview, onClose, onChanged }) {
         </div>
       ) : (
         <dl className="kv">
-          <dt>Capitán</dt><dd>{reg.captain_name}</dd>
-          <dt>WhatsApp</dt><dd>{reg.captain_whatsapp} · <a href={whatsappUrl(reg.captain_whatsapp)} target="_blank" rel="noopener noreferrer">Abrir chat ↗</a>{reg.status === 'approved' && !rejecting && <div className="row-actions" style={{ marginTop: 8 }}><TeamConfirmationButton reg={reg} busy={busy} /></div>}</dd>
+          <dt>{individualPayments ? 'Capitán' : 'Titular del comprobante'}</dt><dd>{reg.captain_name}</dd>
+          <dt>WhatsApp de contacto</dt><dd>{reg.captain_whatsapp} · <a href={whatsappUrl(reg.captain_whatsapp)} target="_blank" rel="noopener noreferrer">Abrir chat ↗</a>{reg.status === 'approved' && !rejecting && <div className="row-actions" style={{ marginTop: 8 }}><TeamConfirmationButton reg={reg} busy={busy} /></div>}</dd>
+          <dt>Yape para premios</dt><dd>{reg.prize_yape_phone || 'No indicado'} {/^[0-9]{8,15}$/.test(reg.prize_yape_phone ?? '') && <button type="button" className="btn btn--sm" onClick={copyPrizeYape}>Copiar número</button>}</dd>
           <dt>Institución</dt><dd>{institutionLabel(reg)}</dd>
           <dt>Registrado</dt><dd>{dateTime(reg.created_at)}</dd>
           {reg.rejection_reason && (<><dt>Motivo rechazo</dt><dd>{reg.rejection_reason}</dd></>)}
         </dl>
       )}
+      {!individualPayments && <p className="hint">El titular del comprobante es quien pagó la inscripción; no identifica necesariamente al titular del Yape receptor. WhatsApp y Yape se corrigen por separado.</p>}
 
       <div>
         <h3 style={{ fontSize: '.9rem', marginBottom: '.5rem' }}>Roster</h3>
@@ -265,7 +269,7 @@ export default function Registrations() {
     return rows.filter((r) =>
       (!filters.game || r.game_key === filters.game) &&
       (!filters.status || r.status === filters.status) &&
-      (!q || r.team_name.toLowerCase().includes(q) || r.captain_name.toLowerCase().includes(q) || r.captain_whatsapp.includes(q)))
+      (!q || r.team_name.toLowerCase().includes(q) || r.captain_name.toLowerCase().includes(q) || r.captain_whatsapp.includes(q) || (r.prize_yape_phone ?? '').includes(q)))
   }, [rows, filters])
 
   const exportCsv = async () => {
@@ -274,9 +278,9 @@ export default function Registrations() {
     const byReg = new Map()
     ;(players ?? []).forEach((p) => byReg.set(p.registration_id, [...(byReg.get(p.registration_id) ?? []), p]))
     downloadCsv(`inscripciones-${new Date().toISOString().slice(0, 10)}.csv`,
-      ['Equipo', 'Juego', 'Estado', 'Monto', 'Capitán', 'WhatsApp', 'Institución', 'Fecha', 'Roster'],
+      ['Equipo', 'Juego', 'Estado', 'Monto', 'Nombre registrado', 'WhatsApp de contacto', 'Yape para premios', 'Institución', 'Fecha', 'Roster'],
       visible.map((r) => [
-        r.team_name, GAME_LABEL[r.game_key], STATUS_LABEL[r.status], r.amount_due, r.captain_name, r.captain_whatsapp,
+        r.team_name, GAME_LABEL[r.game_key], STATUS_LABEL[r.status], r.amount_due, r.captain_name, r.captain_whatsapp, r.prize_yape_phone ?? '',
         institutionLabel(r), dateTime(r.created_at),
         (byReg.get(r.id) ?? []).map((p) => `${p.nickname} (${p.game_player_id}${p.server_id ? `/${p.server_id}` : ''})`).join(' | '),
       ]))

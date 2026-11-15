@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { teamConfirmationLink } from '../src/lib/teamWhatsApp.js'
 
-const registration = { status: 'approved', game_key: 'mlbb', team_name: '꧁Team & + ñ꧂', captain_name: 'Capitán + & ñ', captain_whatsapp: '987654321' }
+const registration = { status: 'approved', game_key: 'mlbb', team_name: '꧁Team & + ñ꧂', captain_name: 'Capitán + & ñ', captain_whatsapp: '987654321', prize_yape_phone: '912345678' }
 
 test('confirmación MLBB abre el número del capitán con equipo y juego correctos', () => {
   const link = new URL(teamConfirmationLink(registration))

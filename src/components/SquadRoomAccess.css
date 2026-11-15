@@ -1,0 +1,9 @@
+.ff-room-access{border:1px solid var(--border);padding:12px;border-radius:10px;min-width:0}
+.ff-room-access summary{cursor:pointer;font-weight:600}
+.ff-room-access-fields{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:12px;margin-top:16px}
+.ff-room-access-fields .field{margin:0;min-width:0}
+.ff-password{display:flex;gap:6px}.ff-password input{min-width:0}
+.ff-access-table{max-height:360px;overflow:auto;margin-top:12px}
+.ff-access-table table{min-width:760px}.ff-access-table th{position:sticky;top:0;background:var(--surface);z-index:1}
+.ff-access-table small{display:block;color:var(--muted);font-size:12px}
+@media(max-width:650px){.ff-room-access-fields{grid-template-columns:1fr}.ff-room-access-fields>button{justify-self:start}}
