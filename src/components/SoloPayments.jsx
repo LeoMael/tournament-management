@@ -17,7 +17,7 @@ export default function SoloPayments({ room, payments, totals, hasPayments, peop
       <div className="tm-payment-summary"><span>Pendiente de esta sala</span><strong>{money(totals.due)}</strong></div>
       <div className="tm-payment-summary"><div><span>Total pagado de esta sala</span>{totals.refundsPaid > 0 && <small className="tm-cell-note">Premios: {money(totals.rewardsPaid)} · Devoluciones: {money(totals.refundsPaid)}</small>}</div><strong>{money(totals.paid)}</strong></div>
     </div>
-    <div className="table-wrap"><table><thead><tr><th>Jugador / nombre</th><th>Yape para premios</th><th>Importe</th><th>Estado</th><th>Pago</th></tr></thead><tbody>
+    <div className="table-wrap solo-scroll-table" tabIndex={0} role="region" aria-label="Pagos de la sala"><table><thead><tr><th>Jugador / nombre</th><th>Yape para premios</th><th>Importe</th><th>Estado</th><th>Pago</th></tr></thead><tbody>
       {payments.map((payment) => {
         const person = peopleById[payment.registration_id]
         const hasAmount = Number(payment.amount) > 0

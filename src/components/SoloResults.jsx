@@ -4,7 +4,7 @@ export default function SoloResults({ room, people, results, busy, onChange }) {
   const playing = room.status === 'playing'
   return <>
     <p className="tm-tab-description">{playing ? 'Tab para avanzar · Un único Booyah · El botón guarda toda la sala.' : room.status === 'finished' ? 'Resultados confirmados. Las ganancias están disponibles en Pagos.' : 'Podrás cargar resultados cuando la sala esté en juego.'}</p>
-    <div className="table-wrap"><table><thead><tr><th>Posición</th><th>Slot</th><th>Jugador</th><th>Kills y Booyah</th><th>Ganancia</th></tr></thead><tbody>
+    <div className="table-wrap solo-scroll-table" tabIndex={0} role="region" aria-label="Resultados de la sala"><table><thead><tr><th>Posición</th><th>Slot</th><th>Jugador</th><th>Kills y Booyah</th><th>Ganancia</th></tr></thead><tbody>
       {people.map((person) => {
         const result = results[person.id]
         const validKills = result && String(result.kills).trim() !== '' && Number.isInteger(Number(result.kills)) && Number(result.kills) >= 0 && Number(result.kills) <= 1000
