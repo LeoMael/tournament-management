@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { whatsappPhone, soloAccessLink, soloConfirmationLink, soloWhatsAppAction } from '../src/lib/soloWhatsApp.js'
+import { whatsappPhone, soloAccessLink, soloConfirmationLink, soloWhatsAppAction, soloPaymentNoticeLink } from '../src/lib/soloWhatsApp.js'
 
 test('normaliza móvil peruano y conserva prefijos internacionales', () => {
   assert.equal(whatsappPhone('987 654 321'), '51987654321')
@@ -12,6 +12,20 @@ test('normaliza móvil peruano y conserva prefijos internacionales', () => {
 const room = { id: 'room-a', name: 'Sala & 1', status: 'closed', scheduled_at: '2026-11-10T01:00:00Z' }
 const person = { nickname: 'P + & ñ', whatsapp: '987654321', slot: 7, status: 'approved' }
 const access = { room_id: 'room-a', game_room_id: '123', room_password: 'a&+# ñ' }
+
+test('aviso de premio pagado usa WhatsApp de contacto y Yape por separado, sin saludo', () => {
+  const recipient = { ...person, id: 'player-a', room_id: room.id, prize_yape_phone: '912345678' }
+  const payment = { registration_id: recipient.id, kind: 'reward', amount: '12.50', paid_at: '2026-11-14T15:00:00Z' }
+  const link = new URL(soloPaymentNoticeLink(room, recipient, payment))
+  assert.equal(link.pathname, '/51987654321')
+  const message = link.searchParams.get('text')
+  assert.ok(message.startsWith(person.nickname + ', ¡tu premio'))
+  for (const part of [room.name, 'ya fue pagado', 'S/ 12.50', 'Yape para premios registrado: 912345678', 'Revisa tu Yape', 'Gracias por participar y confiar en RAGNAROK']) assert.ok(message.includes(part))
+  assert.ok(!message.includes('Hola'))
+  for (const patch of [{ paid_at: null }, { kind: 'refund' }, { amount: 0 }, { amount: -1 }, { amount: 'no' }, { registration_id: 'other' }]) assert.equal(soloPaymentNoticeLink(room, recipient, { ...payment, ...patch }), null)
+  for (const patch of [{ whatsapp: '' }, { prize_yape_phone: '' }, { room_id: 'other' }]) assert.equal(soloPaymentNoticeLink(room, { ...recipient, ...patch }, payment), null)
+  assert.equal(soloPaymentNoticeLink(room, null, payment), null)
+})
 test('mensaje usa slot persistente y codifica caracteres sin alterar el texto', () => {
   const link = new URL(soloAccessLink(room, person, access))
   assert.equal(link.hostname, 'wa.me')

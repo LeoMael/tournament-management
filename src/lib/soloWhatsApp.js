@@ -52,3 +52,22 @@ export function soloWhatsAppAction(room, person, access) {
     ? { label: 'Enviar acceso', href: soloAccessLink(room, person, access) }
     : { label: 'Confirmar inscripción', href: soloConfirmationLink(room, person) }
 }
+import { prizeYapePhone } from './soloPhones.js'
+
+
+export function soloPaymentNoticeLink(room, person, payment) {
+  const phone = whatsappPhone(person?.whatsapp)
+  const yape = prizeYapePhone(person)
+  const amount = Number(payment?.amount)
+  if (!phone || !yape || !room?.id || person?.room_id !== room.id
+    || payment?.registration_id !== person?.id || payment?.kind !== 'reward'
+    || !payment.paid_at || !Number.isFinite(amount) || amount <= 0) return null
+  const message = [
+    person.nickname + ', ¡tu premio de «' + room.name + '» ya fue pagado! ✓',
+    '', 'Importe: S/ ' + amount.toFixed(2),
+    'Yape para premios registrado: ' + yape,
+    '', 'Revisa tu Yape para confirmar que recibiste el depósito.',
+    '', '¡Gracias por participar y confiar en RAGNAROK! Te esperamos en la próxima partida.',
+  ].join('\n')
+  return 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message)
+}
