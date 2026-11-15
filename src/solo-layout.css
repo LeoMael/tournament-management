@@ -69,3 +69,6 @@
   .solo-save-actions { width: 100%; justify-content: space-between; }
   .solo-pagination > div { width: 100%; }
 }
+.solo-payment-player, .solo-payment-number { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.solo-payment-filter { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.solo-payment-filter select { width: auto; min-height: 34px; padding: 5px 9px; }
