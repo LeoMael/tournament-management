@@ -3,7 +3,7 @@ import { prizeYapePhone } from '../lib/soloPhones'
 import { useToast } from '../context/ToastContext'
 import { soloPaymentNoticeLink } from '../lib/soloWhatsApp'
 
-export default function SoloPayments({ room, payments, totalDue, hasPayments, people, results, admin, busy, onPay }) {
+export default function SoloPayments({ room, payments, totals, hasPayments, people, results, admin, busy, onPay }) {
   const toast = useToast()
   const copyNumber = async (person) => {
     const phone = prizeYapePhone(person)
@@ -13,7 +13,10 @@ export default function SoloPayments({ room, payments, totalDue, hasPayments, pe
   }
   const peopleById = Object.fromEntries(people.map((person) => [person.id, person]))
   return <>
-    <div className="tm-payment-summary"><span>Pendiente de esta sala</span><strong>{money(totalDue)}</strong></div>
+    <div className="solo-payment-totals">
+      <div className="tm-payment-summary"><span>Pendiente de esta sala</span><strong>{money(totals.due)}</strong></div>
+      <div className="tm-payment-summary"><div><span>Total pagado de esta sala</span>{totals.refundsPaid > 0 && <small className="tm-cell-note">Premios: {money(totals.rewardsPaid)} · Devoluciones: {money(totals.refundsPaid)}</small>}</div><strong>{money(totals.paid)}</strong></div>
+    </div>
     <div className="table-wrap"><table><thead><tr><th>Jugador / nombre</th><th>Yape para premios</th><th>Importe</th><th>Estado</th><th>Pago</th></tr></thead><tbody>
       {payments.map((payment) => {
         const person = peopleById[payment.registration_id]

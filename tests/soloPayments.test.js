@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { soloPaymentRows } from '../src/lib/soloPayments.js'
+import { soloPaymentRows, soloPaymentTotals } from '../src/lib/soloPayments.js'
 
 test('prioriza todos los pendientes antes de paginar y conserva los datos originales', () => {
   const rows = [
@@ -27,4 +27,16 @@ test('Booyah encabeza su grupo aunque otro gane más, sin adelantar pagados a pe
   ]
   const results = { b: { booyah: true }, d: { booyah: true } }
   assert.deepEqual(soloPaymentRows(rows, 'all', results).map((p) => p.id), ['booyah', 'high', 'paid-booyah', 'paid-high'])
+})
+test('totaliza pagos reales y separa devoluciones sin sumar pendientes ni acumular decimales', () => {
+  const rows = [
+    { kind: 'reward', amount: '0.10', paid_at: '2026-11-14' },
+    { kind: 'reward', amount: '0.20', paid_at: '2026-11-14' },
+    { kind: 'refund', amount: '2.00', paid_at: '2026-11-14' },
+    { kind: 'reward', amount: '10.00', paid_at: null },
+    { kind: 'refund', amount: '3.00', paid_at: null },
+    { kind: 'reward', amount: '0.00', paid_at: '2026-11-14' },
+  ]
+  assert.deepEqual(soloPaymentTotals(rows), { due: 13, paid: 2.3, rewardsPaid: 0.3, refundsPaid: 2 })
+  assert.deepEqual(soloPaymentTotals([]), { due: 0, paid: 0, rewardsPaid: 0, refundsPaid: 0 })
 })

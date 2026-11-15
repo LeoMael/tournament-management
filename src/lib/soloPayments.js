@@ -9,3 +9,13 @@ export function soloPaymentRows(payments, filter = 'positive', results = {}) {
       || Number(b.amount) - Number(a.amount)
       || a.id.localeCompare(b.id))
 }
+export function soloPaymentTotals(payments) {
+  let due = 0, rewardsPaid = 0, refundsPaid = 0
+  for (const payment of payments) {
+    const cents = Math.round(Number(payment.amount) * 100)
+    if (!payment.paid_at) due += cents
+    else if (payment.kind === 'refund') refundsPaid += cents
+    else rewardsPaid += cents
+  }
+  return { due: due / 100, paid: (rewardsPaid + refundsPaid) / 100, rewardsPaid: rewardsPaid / 100, refundsPaid: refundsPaid / 100 }
+}

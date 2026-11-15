@@ -72,3 +72,5 @@
 .solo-payment-player, .solo-payment-number { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
 .solo-payment-filter { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .solo-payment-filter select { width: auto; min-height: 34px; padding: 5px 9px; }
+.solo-payment-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-bottom: 12px; }
+.solo-admin .solo-payment-totals .tm-payment-summary { margin-bottom: 0; }
