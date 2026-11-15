@@ -7,7 +7,9 @@ import { money, dateTime, toLocalInput } from '../lib/format'
 import { allRows, rpc, SOLO_STATUS, MIGRATION_MESSAGE } from '../lib/tournamentModules'
 import { soloPhones, soloAiPrompt, downloadSoloPhones } from '../lib/soloExports'
 import { soloPaymentRows, soloPaymentTotals } from '../lib/soloPayments'
+import { soloResultPeople } from '../lib/soloResultImport'
 import SoloResults from '../components/SoloResults'
+import SoloResultImport from '../components/SoloResultImport'
 import SoloParticipantDetail from '../components/SoloParticipantDetail'
 import SoloScheduleForm from '../components/SoloScheduleForm'
 import SoloRoomAccess, { SoloWhatsAppButton } from '../components/SoloRoomAccess'
@@ -36,9 +38,11 @@ export default function Solo() {
   const [view, setView] = useState('registrations'), [query, setQuery] = useState(''), [roomFilter, setRoomFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('positive')
   const [resultDrafts, setResultDrafts] = useState({})
+  const [resultOrder, setResultOrder] = useState('slot')
   const [roomAccess, setRoomAccess] = useState(null)
   const [detailId, setDetailId] = useState('')
   const [scheduleRoomId, setScheduleRoomId] = useState('')
+  const [importRoomId, setImportRoomId] = useState('')
   const [pagination, setPagination] = useState({ key: '', index: 0, size: 12 })
   useEffect(() => {
     if (!Object.keys(resultDrafts).length) return undefined
@@ -208,6 +212,7 @@ export default function Solo() {
   const initialResults = Object.fromEntries(approved.map((p) => [p.id, { kills: resultById[p.id]?.kills ?? 0, booyah: resultById[p.id]?.booyah ?? false }]))
   const roomResults = { ...initialResults, ...resultDrafts[room?.id] }
   const resultsDirty = approved.some((p) => !resultById[p.id]
+    || roomResults[p.id].reviewRequired
     || String(roomResults[p.id].kills) !== String(resultById[p.id].kills)
     || roomResults[p.id].booyah !== resultById[p.id].booyah)
   const changeResult = (id, patch) => {
@@ -217,6 +222,9 @@ export default function Solo() {
   }
   const saveResults = async () => {
     if (busy || !resultsDirty) return
+    if (approved.some((p) => roomResults[p.id].reviewRequired)) {
+      toast.error('Resuelve y confirma todos los jugadores pendientes de revisión, incluidos los ocultos por el buscador.'); return
+    }
     const rows = approved.map((p) => ({ registration_id: p.id, kills: roomResults[p.id].kills, booyah: roomResults[p.id].booyah }))
     if (!rows.length) return
     if (rows.some((r) => String(r.kills).trim() === '' || !Number.isInteger(Number(r.kills)) || Number(r.kills) < 0 || Number(r.kills) > 1000)) {
@@ -232,6 +240,14 @@ export default function Solo() {
       toast.error(err.message.includes('save_solo_results') ? 'Para guardar toda la sala, aplica la migración 012 en Supabase.' : err.message)
     } finally { setBusy(false) }
   }
+  const importResults = (draft) => {
+    if (busy || !room || room.status !== 'playing' || importRoomId !== room.id) return 'La sala cambió o ya no está en juego. Vuelve a abrir la importación.'
+    setResultDrafts((current) => ({ ...current, [room.id]: draft }))
+    setResultOrder('position')
+    setView('results'); setQuery(''); setImportRoomId('')
+    toast.success('Borrador cargado. Revisa los pendientes antes de guardar todos los resultados.')
+    return null
+  }
   const payments = data.payments.filter((p) => people.some((a) => a.id === p.registration_id))
   const dialogPayment = dialog?.action === 'pay' ? data.payments.find((p) => p.id === dialog.extra.payment_id) : null
   const dialogRecipient = dialogPayment ? data.registrations.find((p) => p.id === dialogPayment.registration_id) : null
@@ -241,8 +257,8 @@ export default function Solo() {
   const filteredPeople = people.filter((p) => `${p.slot != null ? `slot ${p.slot} #${p.slot}` : ''} ${p.nickname} ${p.full_name} ${p.whatsapp} ${p.prize_yape_phone || ''} ${p.institution}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const due = data.payments.filter((p) => !p.paid_at).reduce((sum, p) => sum + Number(p.amount), 0)
   const filteredPayments = soloPaymentRows(payments.filter((payment) => filteredPeople.some((person) => person.id === payment.registration_id)), paymentFilter, resultById)
-  const pagePeople = view === 'results' ? filteredPeople.filter((p) => p.status === 'approved') : filteredPeople
-  const pageKey = `${room?.id}-${view}-${query}-${view === 'payments' ? paymentFilter : ''}`
+  const pagePeople = view === 'results' ? soloResultPeople(filteredPeople.filter((p) => p.status === 'approved'), roomResults, resultOrder) : filteredPeople
+  const pageKey = `${room?.id}-${view}-${query}-${view === 'payments' ? paymentFilter : view === 'results' ? resultOrder : ''}`
   const rowCount = view === 'payments' ? filteredPayments.length : pagePeople.length
   const lastPage = Math.max(0, Math.ceil(rowCount / pagination.size) - 1)
   const page = Math.min(pagination.key === pageKey ? pagination.index : 0, lastPage)
@@ -309,6 +325,8 @@ export default function Solo() {
             <div className="solo-table-tools"><label className="field tm-search"><span className="sr-only">Buscar participante</span><input aria-label="Buscar participante" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar nickname, nombre o número…" /></label>
               {view === 'payments' && <label className="solo-payment-filter">Mostrar<select aria-label="Filtrar pagos" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}><option value="positive">Con importe</option><option value="pending">Por pagar</option><option value="all">Todos</option></select></label>}
               <div className="solo-export-actions"><button type="button" className="btn btn--sm" disabled={busy || !approved.length} title="Exportar WhatsApp de contacto de todos los aprobados (columna phone)" onClick={exportPhones}>Exportar Excel</button><button type="button" className="btn btn--sm" disabled={busy || !approved.length} title="Copiar slots, nicknames exactos y tarifas de todos los aprobados de esta sala" onClick={copyForAi}>Copiar para IA</button></div>
+              {view === 'results' && <label className="solo-payment-filter">Ordenar<select aria-label="Ordenar resultados" value={resultOrder} onChange={(e) => setResultOrder(e.target.value)}><option value="position">Posición final del juego</option><option value="slot">Slot asignado</option></select></label>}
+              {view === 'results' && approved.length > 0 && <button type="button" className="btn" disabled={busy} onClick={() => setImportRoomId(room.id)}>Importar resultados de IA</button>}
               {view === 'results' && room.status === 'playing' && <div className="solo-save-actions"><span role="status">{resultsDirty ? 'Cambios sin guardar' : 'Resultados guardados'}</span><button type="button" className="btn btn--primary" disabled={busy || !resultsDirty} onClick={saveResults}>{busy ? 'Guardando...' : 'Guardar todos los resultados'}</button></div>}
             </div>
             {view === 'registrations' && <><div className="table-wrap"><table><thead><tr><th>Slot</th><th>Jugador</th><th>WhatsApp de contacto</th><th>Inscripción</th><th>Revisión</th></tr></thead><tbody>{visiblePeople.map((p) => <tr key={p.id}><td><span className="solo-slot">{p.slot != null ? `#${p.slot}` : "\u2014"}</span></td><td><div className="tm-player"><span className="tm-player-avatar">{p.nickname.slice(0, 2).toUpperCase()}</span><div><strong>{p.nickname}</strong><small title="Titular del comprobante de inscripción">{p.full_name}</small></div></div></td><td><div className="solo-contact-access"><strong>{p.whatsapp}</strong><SoloWhatsAppButton room={room} person={p} access={roomAccess} onConfirmClick={countConfirmation} onAccessClick={countAccess} /></div><small className="tm-cell-note">Yape para premios: {p.prize_yape_phone || 'No indicado'}</small><small className="tm-cell-note">{[p.institution?.trim(), p.professional_school?.trim()].filter(Boolean).join(' · ') || 'No indicado'}</small>{p.game_player_id && <small className="tm-cell-note">ID anterior: {p.game_player_id}</small>}</td><td>{badge(p.status)}<small className="tm-cell-note">{money(p.amount_due)}</small>{p.reason && <small className="tm-cell-note">{p.reason}</small>}</td><td><button type="button" className="btn btn--sm" disabled={busy} onClick={() => setDetailId(p.id)}>Ver detalle</button>{p.status === 'pending' && ['open', 'closed'].includes(room.status) && <div className="tm-row-actions"><button className="btn btn--sm btn--primary" disabled={busy} onClick={() => act('review', { registration_id: p.id, status: 'approved' })}>Aprobar</button>{[['rejected', 'Rechazar'], ['refund_pending', 'Devolver']].map(([status, label]) => <button key={status} className="btn btn--sm" disabled={busy} onClick={() => setDialog({ action: 'review', title: label, reason: true, extra: { registration_id: p.id, status } })}>{label}</button>)}</div>}</td></tr>)}</tbody></table></div>{visiblePeople.length === 0 && <div className="tm-empty"><h3>{people.length ? 'No encontramos ese jugador' : 'Aún no hay inscripciones'}</h3><p>{people.length ? 'Prueba otro nombre o nickname.' : 'Las solicitudes aparecerán aquí cuando los jugadores se inscriban.'}</p></div>}</>}
@@ -319,6 +337,7 @@ export default function Solo() {
         </> : <section className="card tm-empty tm-room-placeholder"><span className="tm-empty-mark">FF</span><h2>{data.rooms.length ? 'Sin salas con este estado' : 'Prepara tu primera sala Solo'}</h2><p>Una entrada por jugador. Ganancias por kills y un bono para el Booyah.</p></section>}
       </div>
     </div>
+    {importRoomId === room?.id && <SoloResultImport key={room.id} room={room} people={approved} hasDraft={Boolean(resultDrafts[room.id]) || approved.some((p) => resultById[p.id])} busy={busy} onClose={() => setImportRoomId('')} onImport={importResults} />}
     {scheduleRoom && <SoloScheduleForm key={scheduleRoom.id} room={scheduleRoom} deadline={data.settings.registration_deadline} busy={busy} onClose={() => setScheduleRoomId('')} onSave={saveSchedule} />}
     {detailPerson && detailRoom && <SoloParticipantDetail key={detailPerson.id} person={detailPerson} room={detailRoom} isAdmin={admin} hasResults={data.results.some((r) => r.registration_id === detailPerson.id)} hasPayments={data.payments.some((p) => p.registration_id === detailPerson.id)} busy={busy} onClose={() => setDetailId('')} onDelete={(confirmation) => deleteParticipant(detailPerson, detailRoom, confirmation)} onSavePhones={(values) => saveParticipantPhones(detailPerson, detailRoom, values)} />}
     {editing && <RoomForm room={editing.id ? editing : null} busy={busy} onClose={() => !busy && setEditing(null)} onSave={(values) => act(editing.id ? 'edit' : 'create', { ...values, ...(editing.id ? { room_id: editing.id } : {}) })} />}
