@@ -7,6 +7,7 @@ import { publicUrl } from '../lib/storage'
 import { computeStandings, teamPhases } from '../lib/standings'
 import { resolveSlots } from '../lib/bracket'
 import { roomOfStage } from '../lib/rooms'
+import TeamPrizePayments from '../components/TeamPrizePayments'
 
 async function downloadTeamLogo(url, teamName) {
   try {
@@ -153,15 +154,16 @@ export default function Teams() {
   const [openId, setOpenId] = useState(null) // equipo con los integrantes desplegados
 
   const load = useCallback(async () => {
-    const [regs, stages, matches, results, players, prizes] = await Promise.all([
+    const [regs, stages, matches, results, players, prizes, settings] = await Promise.all([
       supabase.from('registrations').select('id, game_key, team_name, logo_path, status, withdrawal_reason, institution, other_institution, professional_school').in('status', ['approved', 'withdrawn']),
       supabase.from('stages').select('id, game_key, type, name, position, created_at, config'),
       supabase.from('matches').select('id, stage_id, team_a, team_b, score_a, score_b, status, winner_id'),
       supabase.from('match_results').select('match_id, registration_id, placement, kills, points'),
       supabase.from('players').select('registration_id, slot, is_substitute, nickname, game_player_id, server_id').order('slot'),
-      supabase.from('prizes').select('place, label, amount, description').order('place'),
+      supabase.from('prizes').select('game_key, place, label, amount, description').order('place'),
+      supabase.from('tournament_settings').select('edition_id').eq('id', 1).single(),
     ])
-    const err = regs.error || stages.error || matches.error || results.error || players.error
+    const err = regs.error || stages.error || matches.error || results.error || players.error || settings.error
     if (err) setError(err.message)
     else {
       setData({
@@ -171,6 +173,7 @@ export default function Teams() {
         results: results.data,
         players: players.data,
         prizes: prizes.data ?? [],
+        editionId: settings.data.edition_id,
       })
       setError(null)
     }
@@ -243,7 +246,7 @@ export default function Teams() {
         <div className="stat stat--ok"><small>Líder</small><strong style={{ fontSize: 20 }}>{leader ? leader.team.team_name : '—'}</strong><em>{leader ? `${leader.points} puntos` : 'Aún sin resultados'}</em></div>
       </div>
 
-      <PodioSection top3={top3} prizes={data.prizes} game={game} />
+      <PodioSection top3={top3} prizes={data.prizes.filter((prize) => prize.game_key === game)} game={game} />
 
       <div className="filter-bar">
         <div className="seg" role="group" aria-label="Juego">
@@ -261,6 +264,7 @@ export default function Teams() {
           </div>
         )}
       </div>
+      <TeamPrizePayments key={`${data.editionId}-${game}`} game={game} editionId={data.editionId} />
       <div className="table-wrap">
         <table className="table-nowrap table-lg">
           <thead>

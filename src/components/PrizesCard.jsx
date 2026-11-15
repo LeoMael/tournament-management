@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useToast } from '../context/ToastContext'
-import { validPrizeReward } from '../lib/prizeValidation'
+import { validPoolAmount, validPrizeReward } from '../lib/prizeValidation'
 
 const labels = ['CAMPEÓN', 'SUBCAMPEÓN', 'TERCER LUGAR']
 
@@ -16,8 +16,8 @@ export default function PrizesCard({ game, prizes }) {
 
   const save = async (event) => {
     event.preventDefault()
-    if (rows.some((row) => !row.label.trim() || !validPrizeReward(row.reward_text, row.is_announced))) {
-      toast.error('Revisa las etiquetas y escribe un premio para cada puesto publicado.')
+    if (rows.some((row) => !row.label.trim() || !validPrizeReward(row.reward_text, row.is_announced) || !validPoolAmount(row.amount))) {
+      toast.error('Revisa las etiquetas, los importes y el premio de cada puesto publicado.')
       return
     }
     setBusy(true)
@@ -42,6 +42,7 @@ export default function PrizesCard({ game, prizes }) {
           <details>
             <summary>Detalles</summary>
             <div className="form-row">
+              <label className="field"><span>Premio en dinero (S/)</span><input type="number" min="0" max="1000000" step="0.01" required value={row.amount} onChange={(e) => setRow(row.place, 'amount', e.target.value)} /><small>Importe para pagos del torneo. No se deduce del texto del premio.</small></label>
               <label className="field"><span>Etiqueta</span><input maxLength={40} value={row.label} onChange={(e) => setRow(row.place, 'label', e.target.value)} /></label>
               <label className="field"><span>Descripción</span><input maxLength={120} value={row.description} onChange={(e) => setRow(row.place, 'description', e.target.value)} /></label>
             </div>

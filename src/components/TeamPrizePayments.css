@@ -1,0 +1,15 @@
+.team-prizes { margin: 20px 0; }
+.team-prizes__head, .team-prizes__number { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.team-prizes__head h2 { margin: 0; }
+.team-prizes__totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.team-prizes__totals > div { padding: 14px; border: 1px solid var(--border); border-radius: 12px; display: grid; gap: 6px; }
+.team-prizes__totals span { color: var(--muted); font-size: .85rem; }
+.team-prizes__totals strong { font-size: 1.2rem; }
+.team-prizes__scroll { overflow: auto; max-height: 55vh; margin-top: 16px; }
+.team-prizes__scroll thead { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+.team-prizes__number { justify-content: flex-start; flex-wrap: nowrap; }
+.team-prizes__number span { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.team-prizes__note { display: block; margin-top: 6px; color: var(--muted); font-size: .8rem; }
+.team-prizes__entry { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin: 14px 0; }
+.team-prizes__entry h3 { margin-top: 0; }
+@media (max-width: 640px) { .team-prizes__totals { grid-template-columns: 1fr; } }
