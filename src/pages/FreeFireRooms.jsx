@@ -56,7 +56,6 @@ export default function FreeFireRooms() {
     } finally { setBusy(false) }
   }
   const chooseNew = () => { setCreationKind(kind); setChoosing(true) }
-  const config = FF_ROOM_KINDS[kind]
   return <>
     <PageHeader eyebrow="Competición / Free Fire" title="Salas Free Fire" actions={<>
       <button type="button" className="btn" disabled={busy} onClick={() => setRefreshKey((value) => value + 1)}>Actualizar</button>
@@ -64,8 +63,7 @@ export default function FreeFireRooms() {
     </>} />
     <ErrorBox error={error} />
     <div className="filter-bar ff-mode-filters">
-      <label className="field">Participación<select value={config.participation} disabled={busy} onChange={(e) => selectKind(`${e.target.value}_${config.mode}`)}><option value="solo">Solo</option><option value="duo">Dúo</option></select></label>
-      <label className="field">Premiación<select value={config.mode} disabled={busy} onChange={(e) => selectKind(`${config.participation}_${e.target.value}`)}><option value="kills">Por kills</option><option value="top">Por Top</option></select></label>
+      <label className="field">Modalidad<select value={kind} disabled={busy} onChange={(e) => selectKind(e.target.value)}>{Object.entries(FF_ROOM_KINDS).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
     </div>
     <div hidden={kind !== 'solo_kills'}><Solo embedded refreshKey={refreshKey} focusRoomId={focus?.kind === 'solo_kills' ? focus.id : ''} /></div>
     {settings && visitedKinds.map((mode) => <div key={`${settings.edition_id}-${mode}`} hidden={kind !== mode}><FfRoomWorkspace active={kind === mode} kind={mode} settings={settings} refreshKey={refreshKey} focusRoomId={focus?.kind === mode ? focus.id : ''} onCreate={chooseNew} /></div>)}

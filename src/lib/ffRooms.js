@@ -1,7 +1,7 @@
 export const FF_ROOM_KINDS = {
-  solo_kills: { label: 'Solo por kills', participation: 'solo', mode: 'kills' },
+  solo_kills: { label: 'Solo por kills y Booyah', participation: 'solo', mode: 'kills' },
   solo_top: { label: 'Solo por Top', participation: 'solo', mode: 'top', table: 'solo_top_rooms', prizes: 'solo_top_room_prizes', draftRpc: 'manage_solo_top_room_draft', maxCapacity: 100 },
-  duo_kills: { label: 'Dúo por kills', participation: 'duo', mode: 'kills', table: 'duo_rooms', prizes: 'duo_room_prizes', draftRpc: 'manage_duo_room_draft', maxCapacity: 50 },
+  duo_kills: { label: 'Dúo por kills y Booyah', participation: 'duo', mode: 'kills', table: 'duo_rooms', prizes: 'duo_room_prizes', draftRpc: 'manage_duo_room_draft', maxCapacity: 50 },
   duo_top: { label: 'Dúo por Top', participation: 'duo', mode: 'top', table: 'duo_rooms', prizes: 'duo_room_prizes', draftRpc: 'manage_duo_room_draft', maxCapacity: 50 },
 }
 

@@ -137,8 +137,13 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
   const access = data.access.find((row) => row.room_id === room?.id)
   const hasAccess = !!access && accessEditingRoom !== room?.id
   const count = (id) => data.registrations.filter((row) => row.room_id === id && ['pending', 'approved'].includes(row.status)).length
-  const canDeleteEmptyRoom = (target) => isAdmin && !data.registrations.some((p) => p.room_id === target.id)
-    && (['draft', 'closed', 'cancelled'].includes(target.status) || (target.status === 'open' && target.is_paused))
+  const canDeleteRoom = (target) => isAdmin && (['finished', 'cancelled'].includes(target.status)
+    || (!data.registrations.some((p) => p.room_id === target.id)
+      && (['draft', 'closed'].includes(target.status) || (target.status === 'open' && target.is_paused))))
+  const confirmRoomDeletion = (target) => openDialog('delete', 'Eliminar sala permanentemente',
+    ['finished', 'cancelled'].includes(target.status)
+      ? 'Se eliminarán definitivamente esta sala, sus inscripciones, resultados y pagos, incluidos los pendientes. No se realizarán transferencias ni devoluciones. Los registros eliminados quedarán en la auditoría privada.'
+      : 'Se eliminará esta sala vacía y su configuración de premios.', true, {}, target)
   const tabs = [['registrations', 'Inscripciones', people.length], ['results', 'Resultados', people.filter((p) => p.status === 'approved').length], ['payments', 'Pagos', payments.filter((p) => !p.paid_at && Number(p.amount) > 0).length]]
   const exportActions = <>
     <button className="btn btn--sm" disabled={busy || !people.some((p) => p.status === 'approved')} title="WhatsApp de contacto de toda la nómina aprobada; columna phone" onClick={() => downloadSoloPhones(room, ffContactPhones(people))}>Exportar Excel</button>
@@ -153,7 +158,7 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
         <label className="field">Estado<select value={filter} disabled={busy} onChange={(e) => setFilter(e.target.value)}><option value="all">Todas las salas</option>{['draft', 'open', 'paused', 'closed', 'playing', 'finished', 'cancelled'].map((status) => <option key={status} value={status}>{SOLO_STATUS[status]}</option>)}</select></label>
         {rooms.map((row) => <FfRoomCard key={row.id} room={row} isDuo={isDuo} selected={row.id === room?.id} status={badge(row)} participants={count(row.id)} busy={busy}
           onSelect={() => { setSelected(row.id); setQuery(''); setPersonId('') }}
-          onDelete={canDeleteEmptyRoom(row) ? () => openDialog('delete', 'Eliminar sala permanentemente', 'Se eliminará esta sala vacía y su configuración de premios.', true, {}, row) : undefined} />)}
+          onDelete={canDeleteRoom(row) ? () => confirmRoomDeletion(row) : undefined} />)}
         {!rooms.length && <p className="hint">Sin salas con este filtro.</p>}
       </aside>
       <div className="tm-room-detail">{room ? <>
