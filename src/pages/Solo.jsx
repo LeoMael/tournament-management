@@ -149,6 +149,8 @@ export default function Solo() {
         ? 'Para pausar inscripciones, aplica la migración 020 en Supabase y actualiza el panel.'
         : action === 'announce' && err.message.includes('set_solo_room_announcement')
         ? 'Para anunciar salas, aplica la migración 017 en Supabase y actualiza la página.'
+        : action === 'delete' && err.message === 'Primero finaliza o cancela la sala antes de eliminarla' && data.rooms.some((r) => r.id === extra.room_id && r.status === 'open' && r.is_paused)
+        ? 'Para eliminar una sala pausada vacía, aplica la migración 028 en Supabase.'
         : action === 'delete' && err.message.includes('delete_solo_room')
         ? 'Para eliminar estas salas, aplica la migración 015 en Supabase y actualiza la página.'
         : err.message)
@@ -291,7 +293,7 @@ export default function Solo() {
         {roomOptions.map((r) => {
           const count = data.registrations.filter((p) => p.room_id === r.id && ['pending', 'approved'].includes(p.status)).length
           const canDelete = admin && (['finished', 'cancelled'].includes(r.status)
-            || (r.status === 'draft' && !data.registrations.some((p) => p.room_id === r.id)
+            || ((r.status === 'draft' || (r.status === 'open' && r.is_paused)) && !data.registrations.some((p) => p.room_id === r.id)
               && !data.results.some((result) => result.room_id === r.id)))
           return <div className="tm-room-item" key={r.id}>
             <button type="button" disabled={busy} className={`tm-room-option ${canDelete ? 'tm-room-option--deletable' : ''} ${r.id === room?.id ? 'tm-room-option--active' : ''}`} aria-pressed={r.id === room?.id} onClick={() => { setSelected(r.id); setQuery('') }}><span className="tm-room-option__top"><strong>{r.name}</strong>{badge(r.status, r.is_paused)}{r.status === 'draft' && r.is_announced && <span className="tm-status tm-status--published">Anunciada</span>}</span><small>{count ? `${count} jugadores` : 'Sin jugadores'}</small></button>

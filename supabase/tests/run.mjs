@@ -76,6 +76,8 @@ try {
   console.log('PASS team_prize_payments.sql')
   await db.exec(fs.readFileSync(root + 'tests/solo_room_details.sql', 'utf8'))
   console.log('PASS solo_room_details.sql')
+  await db.exec(fs.readFileSync(root + 'tests/empty_paused_solo_room_deletion.sql', 'utf8'))
+  console.log('PASS empty_paused_solo_room_deletion.sql')
 } finally {
   await db.close()
 }
