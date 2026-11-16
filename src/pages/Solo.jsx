@@ -108,16 +108,16 @@ export default function Solo() {
     if (busy) return 'Hay otra operación en curso. Intenta de nuevo.'
     setBusy(true)
     try {
-      const saved = await rpc('update_solo_room_schedule', { p_edition_id: data.settings.edition_id, p_room_id: values.room_id, p_scheduled_at: values.scheduled_at, p_closes_at: values.closes_at })
+      const saved = await rpc('update_solo_room_details', { p_edition_id: data.settings.edition_id, p_room_id: values.room_id, p_name: values.name, p_scheduled_at: values.scheduled_at, p_closes_at: values.closes_at })
       setSelected(saved.id)
-      setData((current) => ({ ...current, rooms: current.rooms.map((r) => r.id === saved.id ? { ...r, scheduled_at: saved.scheduled_at, closes_at: saved.closes_at } : r).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)) }))
+      setData((current) => ({ ...current, rooms: current.rooms.map((r) => r.id === saved.id ? { ...r, name: saved.name, scheduled_at: saved.scheduled_at, closes_at: saved.closes_at } : r).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)) }))
       setScheduleRoomId('')
-      toast.success('Horario actualizado. El precio, los premios y los participantes se conservan.')
+      toast.success('Sala actualizada. El precio, los premios y los participantes se conservan.')
       await load()
       return null
     } catch (err) {
-      return err.message.includes('update_solo_room_schedule')
-        ? 'Para editar el horario, aplica la migración 019 en Supabase y actualiza el panel.'
+      return err.message.includes('update_solo_room_details')
+        ? 'Para editar el nombre y el horario, aplica la migración 027 en Supabase y actualiza el panel.'
         : err.message
     } finally { setBusy(false) }
   }
@@ -309,7 +309,7 @@ export default function Solo() {
               {admin && room.status === 'draft' && <><button className="btn" disabled={busy} onClick={() => setEditing(room)}>Editar sala</button><button type="button" className="btn" disabled={busy} onClick={() => act('announce', { room_id: room.id, is_announced: !room.is_announced })}>{room.is_announced ? 'Ocultar anuncio' : 'Anunciar sala'}</button><button className="btn btn--primary" disabled={busy} onClick={() => setDialog({ action: 'open', title: 'Abrir inscripciones', text: 'El precio, el cupo y los premios quedarán fijados para esta sala.' })}>Abrir inscripciones</button></>}
               {admin && room.status === 'open' && <button type="button" className={`btn ${room.is_paused ? 'btn--primary' : ''}`} disabled={busy} onClick={() => setDialog({ action: 'pause', title: room.is_paused ? 'Abrir inscripciones' : 'Pausar inscripciones', text: room.is_paused ? 'La sala volverá a aceptar jugadores si su plazo y las inscripciones generales lo permiten.' : 'La sala dejará de aceptar nuevos jugadores. Se conservan los inscritos, sus slots, las tarifas y los premios.', extra: { room_id: room.id, is_paused: !room.is_paused } })}>{room.is_paused ? 'Abrir inscripciones' : 'Pausar inscripciones'}</button>}
               {room.status === 'open' && !room.is_paused && <button className="btn" disabled={busy} onClick={() => act('close')}>Cerrar inscripciones</button>}
-              {admin && ['open', 'closed'].includes(room.status) && <button type="button" className="btn" disabled={busy} onClick={() => setScheduleRoomId(room.id)}>Editar horario</button>}
+              {admin && ['open', 'closed'].includes(room.status) && <button type="button" className="btn" disabled={busy} onClick={() => setScheduleRoomId(room.id)}>Editar sala</button>}
               {room.status === 'closed' && <button className="btn btn--primary" disabled={busy} onClick={() => setDialog({ action: 'start', title: 'Iniciar partida' })}>Iniciar partida</button>}
               {room.status === 'playing' && <button className="btn btn--primary" disabled={busy} onClick={() => { if (resultsDirty) { setView('results'); toast.error('Guarda todos los resultados antes de finalizar.'); return } setDialog({ action: 'finish', title: 'Finalizar y fijar ganancias', text: 'Los resultados quedarán bloqueados y se generarán las ganancias pendientes.' }) }}>Finalizar partida</button>}
               {!['finished', 'cancelled'].includes(room.status) && <button className="btn btn--ghost tm-cancel" disabled={busy} onClick={() => setDialog({ action: 'cancel', title: 'Cancelar sala', reason: true, text: 'Se devolverán las inscripciones aprobadas. Esta sala ya no podrá jugarse.' })}>Cancelar sala</button>}

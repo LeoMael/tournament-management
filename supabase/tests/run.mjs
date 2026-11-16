@@ -74,6 +74,8 @@ try {
   }
   await db.exec(fs.readFileSync(root + 'tests/team_prize_payments.sql', 'utf8'))
   console.log('PASS team_prize_payments.sql')
+  await db.exec(fs.readFileSync(root + 'tests/solo_room_details.sql', 'utf8'))
+  console.log('PASS solo_room_details.sql')
 } finally {
   await db.close()
 }
