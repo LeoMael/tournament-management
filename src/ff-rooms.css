@@ -1,0 +1,13 @@
+.ff-mode-filters { gap: 14px; margin-bottom: 20px; }
+.ff-mode-filters .field { min-width: 170px; margin: 0; }
+.ff-prize-inputs { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.ff-room-prizes { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0; }
+.ff-room-scroll { overflow: auto; max-height: 55vh; }
+.ff-room-scroll table { width: 100%; }
+.ff-room-scroll thead { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.ff-room-scroll td { vertical-align: middle; }
+.ff-room-scroll .row-actions { flex-wrap: wrap; }
+.ff-pair-nickname { display: block; margin-top: 4px; }
+.ff-room-contact { white-space: nowrap; }
+@media(max-width:640px) { .ff-prize-inputs { grid-template-columns: 1fr; } .ff-mode-filters .field { min-width: 0; flex: 1; } }
+.ff-result-number { width: 76px; min-width: 60px; }

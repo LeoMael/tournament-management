@@ -18,7 +18,7 @@ import Teams from './pages/Teams'
 import Universities from './pages/Universities'
 import Live from './pages/Live'
 import Schedule from './pages/Schedule'
-import Solo from './pages/Solo'
+import FreeFireRooms from './pages/FreeFireRooms'
 import Tournaments from './pages/Tournaments'
 
 export default function App() {
@@ -42,7 +42,7 @@ export default function App() {
               <Route element={<Layout />}>
                 <Route element={<RoleRoute />}>
                   <Route index element={<Dashboard />} />
-                  <Route path="solo" element={<Solo />} />
+                  <Route path="solo" element={<FreeFireRooms />} />
                   <Route path="torneos" element={<Tournaments />} />
                   <Route path="individuales" element={<Individuals />} />
                   <Route path="inscripciones" element={<Registrations />} />

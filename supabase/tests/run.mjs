@@ -19,6 +19,12 @@ try {
   `)
   const files = ['01_schema.sql', '02_seed.sql', ...fs.readdirSync(root + 'migrations').filter((x) => x.endsWith('.sql')).sort().map((x) => 'migrations/' + x)]
   for (const file of files) {
+    if (['migrations/032_ff_room_results_payments.sql', 'migrations/033_ff_room_whatsapp.sql'].includes(file)) await db.exec(fs.readFileSync(root + 'tests/ff_results_preserve_before.sql', 'utf8'))
+    if (file === 'migrations/029_duo_room_foundation.sql') await db.exec(fs.readFileSync(root + 'tests/duo_foundation_before.sql', 'utf8'))
+    if (file === 'migrations/030_solo_top_foundation.sql') {
+      await db.exec(fs.readFileSync(root + 'tests/duo_foundation_before.sql', 'utf8'))
+      await db.exec(fs.readFileSync(root + 'tests/solo_top_foundation_before.sql', 'utf8'))
+    }
     if (file === 'migrations/025_team_prize_yape_phone.sql') await db.exec(fs.readFileSync(root + 'tests/team_prize_phone_before.sql', 'utf8'))
     if (file === 'migrations/022_solo_confirmation_counter.sql') {
       await db.exec(fs.readFileSync(root + 'tests/solo_confirmation_before.sql', 'utf8'))
@@ -50,6 +56,18 @@ try {
       console.log('PASS existing_solo_drafts_hidden')
     }
     console.log('OK', file)
+    if (['migrations/032_ff_room_results_payments.sql', 'migrations/033_ff_room_whatsapp.sql'].includes(file)) {
+      await db.exec(fs.readFileSync(root + 'tests/ff_results_preserve_after.sql', 'utf8'))
+      console.log('PASS existing_solo_contracts_preserved', file)
+    }
+    if (file === 'migrations/029_duo_room_foundation.sql') {
+      await db.exec(fs.readFileSync(root + 'tests/duo_foundation_after.sql', 'utf8'))
+      console.log('PASS duo_foundation_preserves_existing_contracts_and_solo_data')
+    }
+    if (file === 'migrations/030_solo_top_foundation.sql') {
+      await db.exec(fs.readFileSync(root + 'tests/duo_foundation_after.sql', 'utf8'))
+      console.log('PASS solo_top_preserves_solo_and_duo_contracts_and_data')
+    }
     if (file === 'migrations/025_team_prize_yape_phone.sql') {
       await db.exec(fs.readFileSync(root + 'tests/team_prize_phone_after.sql', 'utf8'))
       console.log('PASS team_prize_phone_backfill')
@@ -78,6 +96,16 @@ try {
   console.log('PASS solo_room_details.sql')
   await db.exec(fs.readFileSync(root + 'tests/empty_paused_solo_room_deletion.sql', 'utf8'))
   console.log('PASS empty_paused_solo_room_deletion.sql')
+  await db.exec(fs.readFileSync(root + 'tests/duo_foundation.sql', 'utf8'))
+  console.log('PASS duo_foundation.sql')
+  await db.exec(fs.readFileSync(root + 'tests/solo_top_foundation.sql', 'utf8'))
+  console.log('PASS solo_top_foundation.sql')
+  await db.exec(fs.readFileSync(root + 'tests/ff_room_registrations.sql', 'utf8'))
+  console.log('PASS ff_room_registrations.sql')
+  await db.exec(fs.readFileSync(root + 'tests/ff_room_results.sql', 'utf8'))
+  console.log('PASS ff_room_results.sql')
+  await db.exec(fs.readFileSync(root + 'tests/ff_room_whatsapp.sql', 'utf8'))
+  console.log('PASS ff_room_whatsapp.sql')
 } finally {
   await db.close()
 }

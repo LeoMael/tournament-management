@@ -18,7 +18,7 @@ import SoloPaymentRecipient from '../components/SoloPaymentRecipient'
 import '../tournament-modules.css'
 import '../solo-layout.css'
 
-function RoomForm({ room, onSave, onClose, busy }) {
+export function RoomForm({ room, onSave, onClose, busy }) {
   return <Modal title={room ? 'Editar borrador' : 'Nueva sala Solo'} onClose={onClose}>
     <form onSubmit={(e) => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget)); onSave({ ...data, scheduled_at: new Date(data.scheduled_at).toISOString(), closes_at: new Date(data.closes_at).toISOString() }) }}>
       <label className="field">Nombre<input name="name" minLength={3} maxLength={100} required defaultValue={room?.name} /></label>
@@ -30,7 +30,7 @@ function RoomForm({ room, onSave, onClose, busy }) {
   </Modal>
 }
 
-export default function Solo() {
+export default function Solo({ embedded = false, refreshKey = 0, focusRoomId = '' }) {
   const { role } = useAuth(), admin = role === 'admin'
   const toast = useToast()
   const [data, setData] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false)
@@ -49,14 +49,16 @@ export default function Solo() {
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [resultDrafts])
-  const load = useCallback(async () => {
+  const load = useCallback(async (focusId) => {
     try {
       const [rooms, registrations, results, payments, settings] = await Promise.all([allRows('solo_rooms'), allRows('solo_registrations'), allRows('solo_results', 'registration_id'), allRows('solo_payments'), supabase.from('tournament_settings').select('edition_id,solo_enabled,registration_deadline').eq('id', 1).single()])
       if (settings.error) throw settings.error
       setData({ rooms: rooms.sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)), registrations, results, payments, settings: settings.data }); setError('')
+      if (typeof focusId === 'string' && focusId) { setSelected(focusId); setRoomFilter('all'); setView('registrations') }
     } catch (err) { setError(`${err.message}. ${MIGRATION_MESSAGE}`) }
   }, [])
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load() }, [load, refreshKey])
+  useEffect(() => { if (focusRoomId) void load(focusRoomId) }, [load, focusRoomId])
   const roomOptions = data?.rooms.filter((r) => roomFilter === 'all'
     || (roomFilter === 'paused' ? r.status === 'open' && r.is_paused
       : r.status === roomFilter && !(roomFilter === 'open' && r.is_paused))) ?? []
@@ -276,7 +278,7 @@ export default function Solo() {
       extra: { room_id: targetRoom.id } })
   }
   return <div className="tournament-admin solo-admin">
-    <PageHeader eyebrow="Competición / Free Fire" title="Solo por kills" actions={<><button className="btn" disabled={busy} onClick={load}>Actualizar</button>{admin && <button className="btn btn--primary" disabled={busy} onClick={() => setEditing({})}>+ Nueva sala</button>}</>} />
+    {!embedded && <PageHeader eyebrow="Competición / Free Fire" title="Solo por kills" actions={<><button className="btn" disabled={busy} onClick={load}>Actualizar</button>{admin && <button className="btn btn--primary" disabled={busy} onClick={() => setEditing({})}>+ Nueva sala</button>}</>} />}
     <ErrorBox error={error} />
     {data.registrations.some((p) => !Object.hasOwn(p, 'slot')) && <p className="tm-notice">Para asignar slots al aprobar jugadores, aplica la migración 013 en Supabase.</p>}
     {!data.settings.solo_enabled && <div className="tm-notice"><span className="tm-notice-dot" /><div><strong>Inscripciones Solo desactivadas</strong><p>Los resultados y pagos siguen disponibles. Activa la modalidad desde Configuración cuando quieras recibir jugadores.</p></div></div>}

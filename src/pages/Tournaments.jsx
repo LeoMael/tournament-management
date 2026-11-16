@@ -8,7 +8,13 @@ import { dateTime } from '../lib/format'
 import { uploadFile, publicUrl, signedReceiptUrl } from '../lib/storage'
 import { allRows, rpc, MIGRATION_MESSAGE } from '../lib/tournamentModules'
 
-const SOURCES = { team_prize_settlements: 'Premios finales de equipos', team_prize_payments: 'Pagos y entregas de equipos', registrations: 'Inscripciones de equipos', players: 'Jugadores', individual_registrations: 'Inscripciones individuales', individual_groups: 'Grupos individuales', individual_draws: 'Sorteos individuales', stages: 'Fases', groups: 'Grupos', group_teams: 'Integrantes de grupos', matches: 'Partidos y llaves', match_results: 'Resultados', schedule_events: 'Cronograma', solo_rooms: 'Salas Solo', solo_registrations: 'Inscripciones Solo', solo_results: 'Resultados Solo', solo_payments: 'Pagos Solo', tournament_settings: 'Configuración general', games: 'Juegos', prizes: 'Premios', game_prize_pools: 'Bolsas', individual_settings: 'Configuración individual', rules_sections: 'Reglamento', participation_steps: 'Pasos de participación' }
+const SOURCES = {
+  duo_rooms: 'Salas Dúo', duo_room_prizes: 'Premios por Top Dúo',
+  solo_top_rooms: 'Salas Solo Top', solo_top_room_prizes: 'Premios por Top Solo',
+  ff_room_registrations: 'Inscripciones de Solo Top y Dúo',
+  ff_room_results: 'Resultados de Solo Top y Dúo', ff_room_payments: 'Pagos de Solo Top y Dúo',
+  team_prize_settlements: 'Premios finales de equipos', team_prize_payments: 'Pagos y entregas de equipos', registrations: 'Inscripciones de equipos', players: 'Jugadores', individual_registrations: 'Inscripciones individuales', individual_groups: 'Grupos individuales', individual_draws: 'Sorteos individuales', stages: 'Fases', groups: 'Grupos', group_teams: 'Integrantes de grupos', matches: 'Partidos y llaves', match_results: 'Resultados', schedule_events: 'Cronograma', solo_rooms: 'Salas Solo', solo_registrations: 'Inscripciones Solo', solo_results: 'Resultados Solo', solo_payments: 'Pagos Solo', tournament_settings: 'Configuración general', games: 'Juegos', prizes: 'Premios', game_prize_pools: 'Bolsas', individual_settings: 'Configuración individual', rules_sections: 'Reglamento', participation_steps: 'Pasos de participación',
+}
 const LABELS = { full_name: 'Nombre', nickname: 'Apodo', team_name: 'Equipo', captain_name: 'Capitán', captain_whatsapp: 'WhatsApp de contacto', prize_yape_phone: 'Yape para premios', game_player_id: 'ID del juego', status: 'Estado', amount_due: 'Monto de inscripción', receipt_path: 'Comprobante', refund_receipt_path: 'Comprobante de devolución', logo_path: 'Logo', kills: 'Kills', booyah: 'Booyah', name: 'Nombre', scheduled_at: 'Horario', paid_at: 'Fecha de pago', reference: 'Referencia', amount: 'Monto', registration_id: 'Inscripción', id: 'Identificador' }
 
 function MetadataForm({ edition, busy, save, close }) {
