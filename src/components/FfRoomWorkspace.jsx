@@ -15,7 +15,7 @@ import FfRoomAccess from './FfRoomAccess'
 import { ffAiPrompt, ffContactPhones } from '../lib/ffRoomImport'
 import { downloadSoloPhones } from '../lib/soloExports'
 import { ffPreparedWhatsAppLink } from '../lib/ffRoomWhatsApp'
-import { SoloTopRoomCard, SoloTopRoomTabs } from './SoloTopRoomNavigation'
+import { FfRoomCard, FfRoomTabs } from './FfRoomNavigation'
 
 async function scopedRows(table, filters, order = 'id') {
   const rows = []
@@ -39,7 +39,6 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
   const toast = useToast()
   const config = FF_ROOM_KINDS[kind]
   const isDuo = config.participation === 'duo'
-  const isSoloTop = kind === 'solo_top'
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -152,14 +151,9 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
       <aside className="solo-room-list" aria-label="Tus salas">
         <div className="tm-section-head"><h2>Tus salas</h2><span className="tm-count">{data.rooms.length}</span></div>
         <label className="field">Estado<select value={filter} disabled={busy} onChange={(e) => setFilter(e.target.value)}><option value="all">Todas las salas</option>{['draft', 'open', 'paused', 'closed', 'playing', 'finished', 'cancelled'].map((status) => <option key={status} value={status}>{SOLO_STATUS[status]}</option>)}</select></label>
-        {rooms.map((row) => isSoloTop ? <SoloTopRoomCard key={row.id} room={row} selected={row.id === room?.id} status={badge(row)} participants={count(row.id)} busy={busy}
+        {rooms.map((row) => <FfRoomCard key={row.id} room={row} isDuo={isDuo} selected={row.id === room?.id} status={badge(row)} participants={count(row.id)} busy={busy}
           onSelect={() => { setSelected(row.id); setQuery(''); setPersonId('') }}
-          onDelete={canDeleteEmptyRoom(row) ? () => openDialog('delete', 'Eliminar sala permanentemente', 'Se eliminará esta sala vacía y su configuración de premios.', true, {}, row) : undefined} /> : <div className="tm-room-item" key={row.id}>
-          <button type="button" className={`tm-room-option ${row.id === room?.id ? 'tm-room-option--active' : ''}`} disabled={busy} onClick={() => { setSelected(row.id); setQuery(''); setPersonId('') }} aria-pressed={row.id === room?.id}>
-            <span className="tm-room-option__top"><strong>{row.name}</strong>{badge(row)}{row.status === 'draft' && row.is_announced && <span className="tm-status tm-status--published">Anunciada</span>}</span>
-            <small>{config.label} · {count(row.id)} {isDuo ? 'dúos' : 'jugadores'}</small>
-          </button>
-        </div>)}
+          onDelete={canDeleteEmptyRoom(row) ? () => openDialog('delete', 'Eliminar sala permanentemente', 'Se eliminará esta sala vacía y su configuración de premios.', true, {}, row) : undefined} />)}
         {!rooms.length && <p className="hint">Sin salas con este filtro.</p>}
       </aside>
       <div className="tm-room-detail">{room ? <>
@@ -178,17 +172,16 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
             {isAdmin && ['open', 'closed'].includes(room.status) && <button type="button" className="btn" disabled={busy} onClick={() => setDetails(true)}>Editar sala</button>}
             {room.status === 'closed' && <button className="btn btn--primary" disabled={busy} onClick={() => openDialog('start', 'Iniciar partida', 'Comprueba que todos los participantes estén revisados y ubicados en sus slots.')}>Iniciar partida</button>}
             {isAdmin && room.status === 'playing' && <button className="btn btn--primary" disabled={busy || resultsDirty} onClick={() => openDialog('finish', 'Finalizar partida', 'Los resultados quedarán fijados y se generarán los pagos. Guarda antes todos los resultados.')}>Finalizar partida</button>}
-            {isAdmin && people.length > 0 && ['open', 'closed', 'playing'].includes(room.status) && <button className={`btn btn--ghost ${isSoloTop ? 'tm-cancel' : ''}`} disabled={busy} onClick={() => openDialog('cancel', 'Cancelar sala', 'Se conservarán las inscripciones y se generarán devoluciones para las aprobadas. Esta acción no transfiere dinero.', true)}>Cancelar sala</button>}
+            {isAdmin && people.length > 0 && ['open', 'closed', 'playing'].includes(room.status) && <button className="btn btn--ghost tm-cancel" disabled={busy} onClick={() => openDialog('cancel', 'Cancelar sala', 'Se conservarán las inscripciones y se generarán devoluciones para las aprobadas. Esta acción no transfiere dinero.', true)}>Cancelar sala</button>}
             {isAdmin && !people.length && ['draft', 'open', 'closed', 'cancelled'].includes(room.status) && <>
-              {room.status !== 'cancelled' && <button type="button" className={`btn btn--ghost ${isSoloTop ? 'tm-cancel' : ''}`} disabled={busy} onClick={() => openDialog('cancel', 'Cancelar sala vacía', 'La sala quedará cancelada.', true)}>Cancelar sala</button>}
-              {!isSoloTop && (room.status !== 'open' || room.is_paused) && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => openDialog('delete', 'Eliminar sala permanentemente', 'Se eliminará esta sala vacía y su configuración de premios.', true)}>Eliminar sala</button>}
+              {room.status !== 'cancelled' && <button type="button" className="btn btn--ghost tm-cancel" disabled={busy} onClick={() => openDialog('cancel', 'Cancelar sala vacía', 'La sala quedará cancelada.', true)}>Cancelar sala</button>}
             </>}
           </div>
         </section>
         <section className="card tm-participants">
-          {isSoloTop ? <SoloTopRoomTabs tabs={tabs} view={view} onChange={setView} /> : <div className="row-actions">{tabs.map(([key, label, count]) => <button key={key} className={`btn ${view === key ? 'btn--primary' : ''}`} onClick={() => setView(key)}>{label} <span className="tm-count">{count}</span></button>)}</div>}
-          <div className={isSoloTop ? 'solo-table-tools' : 'row-actions'}><label className="field tm-search"><span className="sr-only">Buscar participante</span><input aria-label="Buscar participante" type="search" value={query} placeholder="Buscar nickname, nombre o número…" onChange={(e) => setQuery(e.target.value)} /></label>
-            {isSoloTop ? <div className="solo-export-actions">{exportActions}</div> : exportActions}
+          <FfRoomTabs tabs={tabs} view={view} onChange={setView} />
+          <div className="solo-table-tools"><label className="field tm-search"><span className="sr-only">Buscar participante</span><input aria-label="Buscar participante" type="search" value={query} placeholder="Buscar nickname, nombre o número…" onChange={(e) => setQuery(e.target.value)} /></label>
+            <div className="solo-export-actions">{exportActions}</div>
           </div>
           <div hidden={view !== 'registrations'}>
           {['open', 'closed', 'playing'].includes(room.status) && <FfRoomAccess key={room.id} access={access} busy={busy || !!sendingId} onEditing={(editing) => setAccessEditingRoom(editing ? room.id : '')} onSave={(values) => run(() => rpc('save_ff_room_access', { p_edition_id: settings.edition_id, p_kind: kind, p_room_id: room.id, p_game_room_id: values.game_room_id.trim(), p_room_password: values.room_password.trim() }))} />}
@@ -196,7 +189,7 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
             {visible.map((row) => <tr key={row.id}>
               <td><strong className="solo-slot">{row.slot ? `#${row.slot}` : '—'}</strong></td>
               <td><strong>{row.nickname_1}</strong>{row.nickname_2 && <strong className="ff-pair-nickname">{row.nickname_2}</strong>}<small className="tm-cell-note">{row.full_name}</small></td>
-              <td><span className="ff-room-contact">{row.whatsapp}</span>{row.status === 'approved' && ['open', 'closed', 'playing'].includes(room.status) && <span className="row-actions"><button className="btn btn--sm solo-send-access" disabled={busy || !!sendingId} onClick={() => sendWhatsApp(row, hasAccess ? 'access' : 'confirmation')}>{hasAccess ? 'Enviar acceso' : 'Confirmar inscripción'}</button><span className="solo-confirmation-count" title={`Clics en ${hasAccess ? 'Enviar acceso' : 'Confirmar inscripción'}`}>{hasAccess ? row.access_click_count : row.confirmation_click_count}</span></span>}<small className="tm-cell-note">Yape para premios · {row.prize_yape_phone}</small></td>
+              <td><div className={isDuo ? 'solo-contact-access' : undefined}><span className="ff-room-contact">{row.whatsapp}</span>{row.status === 'approved' && ['open', 'closed', 'playing'].includes(room.status) && <span className="row-actions"><button className="btn btn--sm solo-send-access" disabled={busy || !!sendingId} onClick={() => sendWhatsApp(row, hasAccess ? 'access' : 'confirmation')}>{hasAccess ? 'Enviar acceso' : 'Confirmar inscripción'}</button><span className="solo-confirmation-count" title={`Clics en ${hasAccess ? 'Enviar acceso' : 'Confirmar inscripción'}`}>{hasAccess ? row.access_click_count : row.confirmation_click_count}</span></span>}</div><small className="tm-cell-note">Yape para premios · {row.prize_yape_phone}</small></td>
               <td><span className={`tm-status tm-status--${row.status}`}>{SOLO_STATUS[row.status]}</span><small className="tm-cell-note">{money(row.amount_due)}</small></td>
               <td><button type="button" className="btn btn--sm" disabled={busy} onClick={() => setPersonId(row.id)}>Ver detalle</button>{row.status === 'pending' && ['open', 'closed'].includes(room.status) && <div className="row-actions"><button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={async () => { const problem = await review(row, 'approved', ''); if (problem) toast.error(problem) }}>Aprobar</button></div>}</td>
             </tr>)}
@@ -229,7 +222,7 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
       <p>{dialog.text}</p>
       {dialog.needsName && <label className="field">Escribe el nombre exacto · {dialog.roomName}<input required value={confirmation} disabled={busy} onChange={(e) => setConfirmation(e.target.value)} /></label>}
       <ErrorBox error={dialogError} />
-      <button className={`btn ${dialog.action === 'delete' ? isSoloTop ? 'tm-delete-confirm' : 'btn--bad' : 'btn--primary'}`} disabled={busy || (dialog.needsName && confirmation !== dialog.roomName)}>{isSoloTop && dialog.action === 'delete' ? 'Eliminar sala' : 'Confirmar'}</button>
+      <button className={`btn ${dialog.action === 'delete' ? 'tm-delete-confirm' : 'btn--primary'}`} disabled={busy || (dialog.needsName && confirmation !== dialog.roomName)}>{dialog.action === 'delete' ? 'Eliminar sala' : 'Confirmar'}</button>
     </form></Modal>}
   </div>
 }

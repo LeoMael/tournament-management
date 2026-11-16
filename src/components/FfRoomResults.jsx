@@ -15,6 +15,7 @@ export default function FfRoomResults({ kind, room, people, visibleIds, results,
   const dirty = approved.some((p) => !!drafts[p.id])
   useEffect(() => { onDirty(dirty) }, [dirty, onDirty])
   const editable = room.status === 'playing'
+  const isDuo = kind !== 'solo_top'
   const resultFor = (p) => drafts[p.id] ?? results.find((s) => s.registration_id === p.id)
   const edit = (p, key, value) => {
     setBaselines((current) => Object.hasOwn(current, room.id) ? current : { ...current, [room.id]: results.map((s) => s.updated_at).sort().at(-1) ?? null })
@@ -29,9 +30,9 @@ export default function FfRoomResults({ kind, room, people, visibleIds, results,
   const rows = approved.filter((p) => visibleIds.has(p.id)).sort((a, b) => order === 'position'
     ? (Number(resultFor(a)?.placement) || 999) - (Number(resultFor(b)?.placement) || 999) || a.slot - b.slot : a.slot - b.slot)
   return <>
-    <div className="row-actions">
+    <div className={isDuo ? 'solo-table-tools' : 'row-actions'}>
       <button className="btn" disabled={busy || !approved.length} onClick={() => setImporting(true)}>Importar resultados de IA</button>
-      <label className="field">Ordenar<select value={order} onChange={(e) => setOrder(e.target.value)}><option value="slot">Slot asignado</option><option value="position">Posición final del juego</option></select></label>
+      <label className={isDuo ? 'solo-payment-filter' : 'field'}>Ordenar<select value={order} onChange={(e) => setOrder(e.target.value)}><option value="slot">Slot asignado</option><option value="position">Posición final del juego</option></select></label>
       {editable && <button className="btn btn--primary" disabled={busy || !dirty} onClick={async () => {
         try {
           const payload = ffResultPayload(kind, people, drafts, results)
@@ -53,10 +54,11 @@ export default function FfRoomResults({ kind, room, people, visibleIds, results,
           <td>{editable ? <input className="ff-result-number" aria-label={`Posición slot ${p.slot}`} type="number" min="1" max={room.capacity} value={r?.placement ?? ''} onChange={(e) => edit(p, 'placement', e.target.value)} disabled={busy} /> : r?.placement ?? '—'}</td>
           <td><strong className="solo-slot">#{p.slot}</strong></td>
           <td><strong>{p.nickname_1}</strong>{p.nickname_2 && <strong className="ff-pair-nickname">{p.nickname_2}</strong>}{readHints[p.id] && <small className="tm-cell-note">Leído: {readHints[p.id]}</small>}{r?.reviewRequired && <span className="tm-cell-note">Por verificar</span>}{editable && r?.reviewRequired && <button className="btn btn--sm" disabled={busy} onClick={() => edit(p, 'reviewRequired', false)}>Confirmar revisión manual</button>}</td>
-          <td>{editable ? <div className="row-actions">
-            <input className="ff-result-number" aria-label={`Kills ${p.nickname_1}`} type="number" min="0" max="1000" value={r?.kills_1 ?? ''} onChange={(e) => edit(p, 'kills_1', e.target.value)} disabled={busy} />
-            {p.nickname_2 && <input className="ff-result-number" aria-label={`Kills ${p.nickname_2}`} type="number" min="0" max="1000" value={r?.kills_2 ?? ''} onChange={(e) => edit(p, 'kills_2', e.target.value)} disabled={busy} />}
+          <td>{editable ? <div className={`row-actions ${isDuo ? 'ff-duo-kills' : ''}`}>
+            {isDuo ? <label className="ff-duo-kill-field"><span title={p.nickname_1}>{p.nickname_1}</span><input className="ff-result-number" aria-label={`Kills ${p.nickname_1}`} type="number" min="0" max="1000" value={r?.kills_1 ?? ''} onChange={(e) => edit(p, 'kills_1', e.target.value)} disabled={busy} /></label> : <input className="ff-result-number" aria-label={`Kills ${p.nickname_1}`} type="number" min="0" max="1000" value={r?.kills_1 ?? ''} onChange={(e) => edit(p, 'kills_1', e.target.value)} disabled={busy} />}
+            {p.nickname_2 && <label className="ff-duo-kill-field"><span title={p.nickname_2}>{p.nickname_2}</span><input className="ff-result-number" aria-label={`Kills ${p.nickname_2}`} type="number" min="0" max="1000" value={r?.kills_2 ?? ''} onChange={(e) => edit(p, 'kills_2', e.target.value)} disabled={busy} /></label>}
             {kind === 'duo_kills' && <label className="check"><input type="checkbox" disabled={busy || !!r?.placement} checked={r?.placement ? Number(r.placement) === 1 : !!r?.booyah} onChange={(e) => edit(p, 'booyah', e.target.checked)} />Booyah</label>}
+            {isDuo && <small className="ff-duo-total">Total: {r && ['kills_1', 'kills_2'].every((key) => r[key] !== '' && r[key] != null) ? Number(r.kills_1) + Number(r.kills_2) : '—'} kills</small>}
           </div> : r ? <>{r.kills_1}{p.nickname_2 ? ` + ${r.kills_2} = ${r.kills_1 + r.kills_2}` : ''} kills {r.booyah && <strong> · Booyah</strong>}</> : '—'}</td>
           <td>{estimate == null ? '—' : money(estimate)}{editable && <small className="tm-cell-note">Provisional</small>}</td>
         </tr>

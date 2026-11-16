@@ -10,6 +10,7 @@ export default function FfRoomPayments({ kind, room, people, payments, results, 
   const [error, setError] = useState('')
   const [reference, setReference] = useState('')
   const totals = ffPaymentTotals(payments)
+  const isDuo = kind === 'duo_top' || kind === 'duo_kills'
   const personFor = (p) => people.find((a) => a.id === p.registration_id)
   const payment = selection?.payment
   const person = selection?.person
@@ -18,16 +19,16 @@ export default function FfRoomPayments({ kind, room, people, payments, results, 
     .sort((a, b) => Number(!!a.paid_at) - Number(!!b.paid_at) || Number(winner(b)) - Number(winner(a)) || Number(b.amount) - Number(a.amount))
   return <>
     <div className="solo-summary"><span>Por pagar <strong>{money(totals.pending)}</strong></span><span>Pagado <strong>{money(totals.paid)}</strong></span><span>Por devolver <strong>{money(totals.refundsPending)}</strong></span><span>Devuelto <strong>{money(totals.refundsPaid)}</strong></span></div>
-    <label className="field">Mostrar<select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="positive">Con importe</option><option value="pending">Pendientes</option><option value="all">Todos</option></select></label>
+    <div className={isDuo ? 'solo-table-tools' : undefined}><label className={isDuo ? 'solo-payment-filter' : 'field'}>Mostrar<select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="positive">Con importe</option><option value="pending">Pendientes</option><option value="all">Todos</option></select></label></div>
     <ErrorBox error={error} />
-    <div className="table-wrap ff-room-scroll"><table><thead><tr><th>Jugador / nombre</th><th>Yape para premios</th><th>Importe</th><th>Estado</th><th>Pago</th></tr></thead><tbody>{rows.map((p) => {
+    <div className="table-wrap ff-room-scroll"><table><thead><tr><th>{isDuo ? 'Dúo / nombre' : 'Jugador / nombre'}</th><th>Yape para premios</th><th>Importe</th><th>Estado</th><th>Pago</th></tr></thead><tbody>{rows.map((p) => {
       const a = personFor(p)
       const phone = p.paid_phone || a?.prize_yape_phone
       const notice = room && ffPaymentNoticeLink(kind, room, a, p)
       return <tr key={p.id}>
         <td><strong>{a?.nickname_1}{a?.nickname_2 ? ` / ${a.nickname_2}` : ''}</strong>{winner(p) && <strong> · Booyah</strong>}<small className="tm-cell-note">{a?.full_name}</small><small className="tm-cell-note">{p.concept === 'refund' ? 'Devolución de inscripción' : 'Premio'}</small></td>
         <td><span className="ff-room-contact">{phone} {Number(p.amount) > 0 && phone && <button className="btn btn--sm" onClick={async () => { try { await navigator.clipboard.writeText(phone); setError('') } catch { setError('No se pudo copiar el número.') } }}>Copiar número</button>}</span></td>
-        <td><strong>{money(p.amount)}</strong></td><td>{Number(p.amount) === 0 ? 'Sin importe' : p.paid_at ? 'Pagado' : 'Por pagar'}</td>
+        <td><strong>{money(p.amount)}</strong></td><td><span className={isDuo ? `tm-status tm-status--${Number(p.amount) === 0 ? 'draft' : p.paid_at ? 'finished' : 'pending'}` : undefined}>{Number(p.amount) === 0 ? isDuo && p.concept === 'reward' ? 'Sin premio' : 'Sin importe' : p.paid_at ? 'Pagado' : 'Por pagar'}</span></td>
         <td>{p.paid_at ? <>{dateTime(p.paid_at)}<small className="tm-cell-note">{p.reference}</small>{notice && <a className="btn btn--sm" href={notice} target="_blank" rel="noopener noreferrer">Avisar pago</a>}</> : Number(p.amount) > 0 && admin && <button className="btn btn--primary btn--sm" disabled={busy} onClick={() => { setSelection({ payment: p, person: a }); setReference(''); setError('') }}>Registrar {p.concept === 'refund' ? 'devolución' : 'pago'}</button>}</td>
       </tr>
     })}</tbody></table></div>

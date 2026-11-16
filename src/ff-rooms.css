@@ -11,3 +11,7 @@
 .ff-room-contact { white-space: nowrap; }
 @media(max-width:640px) { .ff-prize-inputs { grid-template-columns: 1fr; } .ff-mode-filters .field { min-width: 0; flex: 1; } }
 .ff-result-number { width: 76px; min-width: 60px; }
+.ff-duo-kills { align-items: center; gap: 8px 12px; }
+.ff-duo-kill-field { display: grid; gap: 4px; max-width: 140px; min-width: 76px; }
+.ff-duo-kill-field > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+.ff-duo-total { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
