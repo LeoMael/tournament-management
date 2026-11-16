@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { ErrorBox, Spinner, Modal } from './ui'
-import { FF_ROOM_KINDS } from '../lib/ffRooms'
+import { FF_ROOM_KINDS, ffRoomCanDelete } from '../lib/ffRooms'
 import { rpc, SOLO_STATUS } from '../lib/tournamentModules'
 import { dateTime, money } from '../lib/format'
 import FfRoomForm from './FfRoomForm'
@@ -137,11 +137,9 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
   const access = data.access.find((row) => row.room_id === room?.id)
   const hasAccess = !!access && accessEditingRoom !== room?.id
   const count = (id) => data.registrations.filter((row) => row.room_id === id && ['pending', 'approved'].includes(row.status)).length
-  const canDeleteRoom = (target) => isAdmin && (['finished', 'cancelled'].includes(target.status)
-    || (!data.registrations.some((p) => p.room_id === target.id)
-      && (['draft', 'closed'].includes(target.status) || (target.status === 'open' && target.is_paused))))
+  const canDeleteRoom = (target) => isAdmin && ffRoomCanDelete(target, data.registrations.some((p) => p.room_id === target.id))
   const confirmRoomDeletion = (target) => openDialog('delete', 'Eliminar sala permanentemente',
-    ['finished', 'cancelled'].includes(target.status)
+    data.registrations.some((p) => p.room_id === target.id) || ['finished', 'cancelled'].includes(target.status)
       ? 'Se eliminarán definitivamente esta sala, sus inscripciones, resultados y pagos, incluidos los pendientes. No se realizarán transferencias ni devoluciones. Los registros eliminados quedarán en la auditoría privada.'
       : 'Se eliminará esta sala vacía y su configuración de premios.', true, {}, target)
   const tabs = [['registrations', 'Inscripciones', people.length], ['results', 'Resultados', people.filter((p) => p.status === 'approved').length], ['payments', 'Pagos', payments.filter((p) => !p.paid_at && Number(p.amount) > 0).length]]

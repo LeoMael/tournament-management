@@ -15,3 +15,5 @@
 .ff-duo-kill-field { display: grid; gap: 4px; max-width: 140px; min-width: 76px; }
 .ff-duo-kill-field > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
 .ff-duo-total { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ff-mode-selector > span { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+.ff-mode-tabs { flex-wrap: wrap; overflow: visible; margin: 0 0 16px; }

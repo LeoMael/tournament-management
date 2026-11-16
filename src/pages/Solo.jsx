@@ -294,7 +294,7 @@ export default function Solo({ embedded = false, refreshKey = 0, focusRoomId = '
         <label className="field"><span>Estado</span><select disabled={busy} value={roomFilter} onChange={(e) => { setRoomFilter(e.target.value); setQuery('') }}><option value="all">Todas las salas</option>{['draft', 'open', 'paused', 'closed', 'playing', 'finished', 'cancelled'].map((status) => <option key={status} value={status}>{SOLO_STATUS[status]}</option>)}</select></label>
         {roomOptions.map((r) => {
           const count = data.registrations.filter((p) => p.room_id === r.id && ['pending', 'approved'].includes(p.status)).length
-          const canDelete = admin && (['finished', 'cancelled'].includes(r.status)
+          const canDelete = admin && (['open', 'closed', 'finished', 'cancelled'].includes(r.status)
             || ((r.status === 'draft' || (r.status === 'open' && r.is_paused)) && !data.registrations.some((p) => p.room_id === r.id)
               && !data.results.some((result) => result.room_id === r.id)))
           return <div className="tm-room-item" key={r.id}>

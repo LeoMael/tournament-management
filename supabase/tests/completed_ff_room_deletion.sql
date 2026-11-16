@@ -32,8 +32,10 @@ begin
       receipt:=gen_random_uuid()::text||'.png';
       insert into storage.objects(bucket_id,name,metadata) values('receipts',receipt,'{"mimetype":"image/png","size":100}');
       person:=(submit_ff_room_registration(config||jsonb_build_object('request_id',gen_random_uuid(),'full_name','Nombre de prueba','whatsapp','930475802','prize_yape_phone','988888888','nickname_1','Jugador A','nickname_2',case when kind<>'solo_top' then 'Jugador B' end,'receipt_path',receipt))->>'id')::uuid;
-      begin perform manage_ff_room('delete',config); raise exception 'TEST: elimina abierta con inscritos';
-      exception when raise_exception then if sqlerrm<>'Esta sala tiene inscripciones. Conserva su historial.' then raise; end if; end;
+      if not exists(select 1 from schema_migrations where version='035') then
+        begin perform manage_ff_room('delete',config); raise exception 'TEST: elimina abierta con inscritos';
+        exception when raise_exception then if sqlerrm<>'Esta sala tiene inscripciones. Conserva su historial.' then raise; end if; end;
+      end if;
       perform review_ff_room_registration(edition,kind,rid,person,'approved','');
       perform save_ff_room_access(edition,kind,rid,'12345','SECRET-DELETE-ACCESS');
       perform manage_ff_room('close',config);

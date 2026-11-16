@@ -19,6 +19,10 @@ try {
   `)
   const files = ['01_schema.sql', '02_seed.sql', ...fs.readdirSync(root + 'migrations').filter((x) => x.endsWith('.sql')).sort().map((x) => 'migrations/' + x)]
   for (const file of files) {
+    if (file === 'migrations/035_delete_open_ff_rooms.sql') {
+      await db.exec(fs.readFileSync(root + 'tests/ff_results_preserve_before.sql', 'utf8'))
+      await db.exec(`delete from ff_legacy_functions where oid='public.delete_solo_room(uuid,uuid,text)'::regprocedure`)
+    }
     if (['migrations/032_ff_room_results_payments.sql', 'migrations/033_ff_room_whatsapp.sql', 'migrations/034_delete_completed_ff_rooms.sql'].includes(file)) await db.exec(fs.readFileSync(root + 'tests/ff_results_preserve_before.sql', 'utf8'))
     if (file === 'migrations/029_duo_room_foundation.sql') await db.exec(fs.readFileSync(root + 'tests/duo_foundation_before.sql', 'utf8'))
     if (file === 'migrations/030_solo_top_foundation.sql') {
@@ -56,6 +60,10 @@ try {
       console.log('PASS existing_solo_drafts_hidden')
     }
     console.log('OK', file)
+    if (file === 'migrations/035_delete_open_ff_rooms.sql') {
+      await db.exec(fs.readFileSync(root + 'tests/ff_results_preserve_after.sql', 'utf8'))
+      console.log('PASS solo_contracts_preserved_except_authorized_room_deletion')
+    }
     if (['migrations/032_ff_room_results_payments.sql', 'migrations/033_ff_room_whatsapp.sql', 'migrations/034_delete_completed_ff_rooms.sql'].includes(file)) {
       await db.exec(fs.readFileSync(root + 'tests/ff_results_preserve_after.sql', 'utf8'))
       console.log('PASS existing_solo_contracts_preserved', file)
@@ -108,6 +116,8 @@ try {
   console.log('PASS ff_room_whatsapp.sql')
   await db.exec(fs.readFileSync(root + 'tests/completed_ff_room_deletion.sql', 'utf8'))
   console.log('PASS completed_ff_room_deletion.sql')
+  await db.exec(fs.readFileSync(root + 'tests/open_ff_room_deletion.sql', 'utf8'))
+  console.log('PASS open_ff_room_deletion.sql')
 } finally {
   await db.close()
 }

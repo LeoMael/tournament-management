@@ -9,6 +9,15 @@ try {
   const Payments = (await server.ssrLoadModule('/src/components/FfRoomPayments.jsx')).default
   const Import = (await server.ssrLoadModule('/src/components/FfRoomImport.jsx')).default
   const Access = (await server.ssrLoadModule('/src/components/FfRoomAccess.jsx')).default
+  const FreeFireRooms = (await server.ssrLoadModule('/src/pages/FreeFireRooms.jsx')).default
+  const { AuthProvider } = await server.ssrLoadModule('/src/context/AuthContext.jsx')
+  const { ToastProvider } = await server.ssrLoadModule('/src/context/ToastContext.jsx')
+  const page = renderToStaticMarkup(React.createElement(AuthProvider, null, React.createElement(ToastProvider, null, React.createElement(FreeFireRooms))))
+  assert.match(page, /aria-label="Filtrar salas por modalidad"/)
+  assert.match(page, /aria-pressed="true">Solo por kills y Booyah/)
+  assert.ok(!page.includes('>Todos</button>'))
+  for (const label of ['Solo por kills y Booyah', 'Solo por Top', 'Dúo por kills y Booyah', 'Dúo por Top']) assert.ok(page.includes(label))
+  assert.ok(!page.includes('<select'))
   const people = [{ id: 'a', slot: 1, status: 'approved', nickname_1: 'Jugador A', nickname_2: 'Jugador B', full_name: 'Nombre registrado', whatsapp: '999999999', prize_yape_phone: '988888888' }, { id: 'b', slot: 2, status: 'approved', nickname_1: 'Sin premio', prize_yape_phone: '977777777' }]
   const results = [{ registration_id: 'a', placement: 1, kills_1: 2, kills_2: 3, booyah: true }]
   for (const kind of ['solo_top', 'duo_top', 'duo_kills']) {

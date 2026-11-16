@@ -7,6 +7,11 @@ export const FF_ROOM_KINDS = {
 
 export const ffParticipantName = (person) => [person.nickname_1, person.nickname_2].filter(Boolean).join(' / ')
 
+// La autorización se vuelve a comprobar en el servidor. En juego se debe cancelar primero.
+export const ffRoomCanDelete = (room, hasRegistrations, hasResults = false) =>
+  ['open', 'closed', 'finished', 'cancelled'].includes(room.status)
+  || (room.status === 'draft' && !hasRegistrations && !hasResults)
+
 function amount(value, max) {
   if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(String(value)) || Number(value) > max) {
     throw new Error('Revisa los importes. Usa números no negativos con hasta dos decimales.')

@@ -84,8 +84,10 @@ begin
     if (submit_ff_room_registration(registration_payload)->>'id')::uuid<>person_a then raise exception 'TEST: reintento existente falla tras pausa'; end if;
     begin perform submit_ff_room_registration(registration_payload||jsonb_build_object('request_id',gen_random_uuid())); raise exception 'TEST: inscribe pausada';
     exception when raise_exception then if sqlerrm<>'Esta sala no admite inscripciones' then raise; end if; end;
-    begin perform manage_ff_room('delete',config||jsonb_build_object('confirmation','Revisión '||kind)); raise exception 'TEST: elimina con inscritos';
-    exception when raise_exception then if sqlerrm<>'Esta sala tiene inscripciones. Conserva su historial.' then raise; end if; end;
+    if not exists(select 1 from schema_migrations where version='035') then
+      begin perform manage_ff_room('delete',config||jsonb_build_object('confirmation','Revisión '||kind)); raise exception 'TEST: elimina con inscritos';
+      exception when raise_exception then if sqlerrm<>'Esta sala tiene inscripciones. Conserva su historial.' then raise; end if; end;
+    end if;
     perform manage_ff_room('details',config||jsonb_build_object('name','Nombre nuevo '||kind,'scheduled_at',now()+interval '4 days','closes_at',now()+interval '3 days'));
     if not exists(select 1 from public_ff_rooms where id=room_key and name='Nombre nuevo '||kind and is_paused) then raise exception 'TEST: editar reabre o pierde nombre'; end if;
     perform set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',true);
@@ -120,8 +122,10 @@ begin
   room_key:=(room_data->>'id')::uuid;
   config:=jsonb_build_object('edition_id',edition,'room_kind','solo_top','room_id',room_key,'confirmation','Vacía para gestionar');
   perform manage_ff_room('open',config);
-  begin perform manage_ff_room('delete',config); raise exception 'TEST: elimina abierta sin pausar';
-  exception when raise_exception then if sqlerrm<>'Pausa las inscripciones antes de eliminar la sala' then raise; end if; end;
+  if not exists(select 1 from schema_migrations where version='035') then
+    begin perform manage_ff_room('delete',config); raise exception 'TEST: elimina abierta sin pausar';
+    exception when raise_exception then if sqlerrm<>'Pausa las inscripciones antes de eliminar la sala' then raise; end if; end;
+  end if;
   perform manage_ff_room('pause',config||jsonb_build_object('is_paused',true));
   begin perform manage_ff_room('delete',config||jsonb_build_object('confirmation','Equivocado')); raise exception 'TEST: elimina sin nombre';
   exception when raise_exception then if sqlerrm<>'Escribe el nombre exacto de la sala' then raise; end if; end;

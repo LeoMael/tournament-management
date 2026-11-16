@@ -62,8 +62,8 @@ export default function FreeFireRooms() {
       {isAdmin && <button type="button" className="btn btn--primary" disabled={busy || !settings || !!error} onClick={chooseNew}>+ Nueva sala</button>}
     </>} />
     <ErrorBox error={error} />
-    <div className="filter-bar ff-mode-filters">
-      <label className="field">Modalidad<select value={kind} disabled={busy} onChange={(e) => selectKind(e.target.value)}>{Object.entries(FF_ROOM_KINDS).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
+    <div className="ff-mode-selector"><span>Modalidad</span>
+      <div className="tm-tabs ff-mode-tabs" role="group" aria-label="Filtrar salas por modalidad">{Object.entries(FF_ROOM_KINDS).map(([key, value]) => <button type="button" className={`tm-tab ${kind === key ? 'tm-tab--active' : ''}`} aria-pressed={kind === key} disabled={busy} key={key} onClick={() => selectKind(key)}>{value.label}</button>)}</div>
     </div>
     <div hidden={kind !== 'solo_kills'}><Solo embedded refreshKey={refreshKey} focusRoomId={focus?.kind === 'solo_kills' ? focus.id : ''} /></div>
     {settings && visitedKinds.map((mode) => <div key={`${settings.edition_id}-${mode}`} hidden={kind !== mode}><FfRoomWorkspace active={kind === mode} kind={mode} settings={settings} refreshKey={refreshKey} focusRoomId={focus?.kind === mode ? focus.id : ''} onCreate={chooseNew} /></div>)}

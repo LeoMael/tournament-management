@@ -33,16 +33,26 @@ begin
     end if;
     update solo_rooms set is_paused=true where id=room;
     select to_jsonb(r) into before_person from solo_registrations r where id=person;
-    begin perform delete_solo_room(e,room,'Pausada con historial'); raise exception 'TEST: elimina historial de sala pausada';
-    exception when raise_exception then if sqlerrm<>'La sala pausada tiene inscripciones o resultados. Cancélala antes de eliminarla.' then raise; end if; end;
-    if before_person is distinct from (select to_jsonb(r) from solo_registrations r where id=person) or not exists(select 1 from solo_rooms where id=room) then raise exception 'TEST: error deja eliminación parcial'; end if;
-    if state='approved' and (not exists(select 1 from solo_results where registration_id=person) or not exists(select 1 from solo_payments where registration_id=person)) then raise exception 'TEST: pierde resultados/pagos'; end if;
+    if exists(select 1 from schema_migrations where version='035') then
+      perform delete_solo_room(e,room,'Pausada con historial');
+      if exists(select 1 from solo_registrations where id=person) or exists(select 1 from solo_results where registration_id=person) or exists(select 1 from solo_payments where registration_id=person) then raise exception 'TEST: 035 deja historial activo tras eliminar'; end if;
+    else
+      begin perform delete_solo_room(e,room,'Pausada con historial'); raise exception 'TEST: elimina historial de sala pausada';
+      exception when raise_exception then if sqlerrm<>'La sala pausada tiene inscripciones o resultados. Cancélala antes de eliminarla.' then raise; end if; end;
+      if before_person is distinct from (select to_jsonb(r) from solo_registrations r where id=person) or not exists(select 1 from solo_rooms where id=room) then raise exception 'TEST: error deja eliminación parcial'; end if;
+      if state='approved' and (not exists(select 1 from solo_results where registration_id=person) or not exists(select 1 from solo_payments where registration_id=person)) then raise exception 'TEST: pierde resultados/pagos'; end if;
+    end if;
   end loop;
   foreach state in array array['open','closed','playing'] loop
     insert into solo_rooms(name,scheduled_at,closes_at,capacity,entry_price,kill_reward,booyah_reward,status)
       values('Sala activa vacía',now()+interval '2 days',now()+interval '1 day',48,2,1,10,state) returning id into room;
-    begin perform delete_solo_room(e,room,'Sala activa vacía'); raise exception 'TEST: elimina sala activa no pausada';
-    exception when raise_exception then if sqlerrm<>'Primero finaliza o cancela la sala antes de eliminarla' then raise; end if; end;
+    if state in('open','closed') and exists(select 1 from schema_migrations where version='035') then
+      perform delete_solo_room(e,room,'Sala activa vacía');
+      if exists(select 1 from solo_rooms where id=room) then raise exception 'TEST: 035 no elimina sala vacía'; end if;
+    else
+      begin perform delete_solo_room(e,room,'Sala activa vacía'); raise exception 'TEST: elimina sala activa no pausada';
+      exception when raise_exception then if sqlerrm<>'Primero finaliza o cancela la sala antes de eliminarla' then raise; end if; end;
+    end if;
   end loop;
 end $$;
 set local role anon;

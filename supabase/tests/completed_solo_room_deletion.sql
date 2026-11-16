@@ -42,7 +42,7 @@ begin
   foreach s in array array['draft','open','closed','playing'] loop
     insert into solo_rooms(name,scheduled_at,closes_at,capacity,entry_price,kill_reward,booyah_reward,status)
     values('Sala activa',now()+interval '2 days',now()+interval '1 day',2,2,1,10,s) returning id into room;
-    if s='draft' then perform delete_solo_room(e,room,'Sala activa');
+    if s='draft' or (s in('open','closed') and exists(select 1 from schema_migrations where version='035')) then perform delete_solo_room(e,room,'Sala activa');
     else
       begin perform delete_solo_room(e,room,'Sala activa'); raise exception 'TEST: elimina sala en operación';
       exception when raise_exception then if sqlerrm <> 'Primero finaliza o cancela la sala antes de eliminarla' then raise; end if; end;
