@@ -239,7 +239,7 @@ export default function Teams() {
 
   return (
     <>
-      <PageHeader eyebrow="Torneo" title="Equipos y puntos" subtitle={`${active} equipos aprobados en competencia${rows.length > active ? ` · ${rows.length - active} retirados` : ''}.`} />
+      <PageHeader eyebrow="Competencia" title="Clasificación y premios" subtitle={`${active} equipos aprobados en competencia${rows.length > active ? ` · ${rows.length - active} retirados` : ''}.`} />
       <div className="grid grid--4" style={{ marginBottom: '1rem' }}>
         <div className="stat stat--accent"><small>En competencia</small><strong>{active}</strong><em>equipos aprobados</em></div>
         <div className="stat"><small>Retirados</small><strong>{rows.length - active}</strong><em>fuera del torneo</em></div>

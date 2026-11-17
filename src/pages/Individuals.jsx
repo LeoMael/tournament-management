@@ -48,7 +48,7 @@ export default function Individuals() {
   ]
   return (
     <>
-      <PageHeader eyebrow="Operación" title="Inscripciones individuales" subtitle="Revisa solicitudes y forma equipos para el torneo."
+      <PageHeader eyebrow="Inscripciones" title="Jugadores sin equipo" subtitle="Revisa solicitudes y forma equipos para el torneo."
         actions={<><button type="button" className="btn" onClick={load}>Actualizar</button>{isAdmin && <button type="button" className="btn" onClick={() => setSettingsOpen(true)}>Configuración</button>}</>} />
       <div className="individual-stats">
         {stats.map(([label, value, style]) => <div className={`stat ${style}`} key={label}><small>{label}</small><strong>{value}</strong></div>)}

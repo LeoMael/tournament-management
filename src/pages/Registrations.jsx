@@ -290,7 +290,7 @@ export default function Registrations() {
   if (!rows) return <Spinner />
   return (
     <>
-      <PageHeader eyebrow="Operación" title="Inscripciones" subtitle={`${visible.length} de ${rows.length} equipos`}
+      <PageHeader eyebrow="Inscripciones" title="Equipos inscritos" subtitle={`${visible.length} de ${rows.length} equipos`}
         actions={<button className="btn" onClick={exportCsv} type="button" disabled={!visible.length}>Exportar CSV</button>} />
       <div className="filter-bar">
         <input aria-label="Buscar" placeholder="Buscar equipo, capitán o WhatsApp…" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />

@@ -28,8 +28,8 @@ export default function SoloScheduleForm({ room, deadline, busy, onClose, onSave
     <form onSubmit={save}>
       <label className="field">Nombre de la sala<input type="text" required minLength={3} maxLength={100} value={name} disabled={busy} onChange={(event) => setName(event.target.value)} /></label>
       <div className="form-row">
-        <label className="field">Fecha y hora de partida<input type="datetime-local" required value={scheduledAt} disabled={busy} onChange={(event) => setScheduledAt(event.target.value)} /></label>
         <label className="field">Cierre de inscripción<input type="datetime-local" required value={closesAt} disabled={busy} onChange={(event) => setClosesAt(event.target.value)} /></label>
+        <label className="field">Fecha y hora de partida<input type="datetime-local" required value={scheduledAt} disabled={busy} onChange={(event) => setScheduledAt(event.target.value)} /></label>
       </div>
       <p className="hint">Hora del dispositivo: {Intl.DateTimeFormat().resolvedOptions().timeZone}. Puedes cambiar el nombre y las fechas; los precios, premios y participantes se conservan.</p>
       {deadline && <p className="hint">Plazo general del torneo: {dateTime(deadline)}. Para superar ese plazo, amplíalo primero en Configuración.</p>}

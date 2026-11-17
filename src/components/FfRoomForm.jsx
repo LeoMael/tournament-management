@@ -29,7 +29,7 @@ export default function FfRoomForm({ kind, room, prizes = [], busy, onClose, onS
   return <Modal title={`${room ? 'Editar borrador' : 'Nueva sala'} · ${config.label}`} onClose={() => !busy && onClose()}>
     <form onSubmit={submit}>
       <label className="field">Nombre<input required minLength={3} maxLength={100} disabled={busy} value={values.name} onChange={(e) => update('name', e.target.value)} /></label>
-      <div className="form-row">{[['scheduled_at', 'Fecha de partida'], ['closes_at', 'Cierre de inscripción']].map(([field, label]) => <label key={field} className="field">{label}<input type="datetime-local" required disabled={busy} value={values[field]} onChange={(e) => update(field, e.target.value)} /></label>)}</div>
+      <div className="form-row">{[['closes_at', 'Cierre de inscripción'], ['scheduled_at', 'Fecha de partida']].map(([field, label]) => <label key={field} className="field">{label}<input type="datetime-local" required disabled={busy} value={values[field]} onChange={(e) => update(field, e.target.value)} /></label>)}</div>
       <div className="form-row">
         <label className="field">{isDuo ? 'Cupo de dúos' : 'Cupo de jugadores'}<input type="number" min={2} max={config.maxCapacity} step={1} required disabled={busy} value={values.capacity} onChange={(e) => update('capacity', e.target.value)} /></label>
         <label className="field">{isDuo ? 'Entrada por dúo (S/)' : 'Entrada por jugador (S/)'}<input type="number" min={0} max={10000} step="0.01" required disabled={busy} value={values.entry_price} onChange={(e) => update('entry_price', e.target.value)} /></label>

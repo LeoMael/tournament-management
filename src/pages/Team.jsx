@@ -150,7 +150,7 @@ export default function Team() {
     <>
       <PageHeader
         eyebrow="Sistema"
-        title="Equipo"
+        title="Usuarios del panel"
         subtitle="Quién entra al panel y qué puede hacer."
         actions={<button className="btn btn--primary" type="button" onClick={() => setCreating(true)}>Nuevo miembro</button>}
       />
