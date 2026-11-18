@@ -16,6 +16,7 @@ import { ffAiPrompt, ffContactPhones } from '../lib/ffRoomImport'
 import { downloadSoloPhones } from '../lib/soloExports'
 import { ffPreparedWhatsAppLink } from '../lib/ffRoomWhatsApp'
 import { FfRoomCard, FfRoomTabs } from './FfRoomNavigation'
+import { prepareWhatsAppLaunch } from '../lib/whatsappLaunch'
 
 async function scopedRows(table, filters, order = 'id') {
   const rows = []
@@ -34,7 +35,7 @@ function badge(room) {
   return <span className={`tm-status tm-status--${status}`}>{SOLO_STATUS[status]}</span>
 }
 
-export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomId, onCreate, active = true }) {
+export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomId, onCreate, active = true, whatsappTarget = 'web' }) {
   const { isAdmin } = useAuth()
   const toast = useToast()
   const config = FF_ROOM_KINDS[kind]
@@ -108,9 +109,8 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
   }
   const sendWhatsApp = async (person, action) => {
     if (sendingId || busy) return
-    const popup = window.open('about:blank', '_blank')
-    if (!popup) { toast.error('Permite ventanas emergentes para abrir WhatsApp.'); return }
-    popup.opener = null
+    let launch
+    try { launch = prepareWhatsAppLaunch(whatsappTarget) } catch (problem) { toast.error(problem.message); return }
     setSendingId(person.id)
     try {
       const expected = { edition_id: settings.edition_id, room_kind: kind, room_id: person.room_id, registration_id: person.id, action }
@@ -118,8 +118,8 @@ export default function FfRoomWorkspace({ kind, settings, refreshKey, focusRoomI
       const href = ffPreparedWhatsAppLink(saved, expected)
       if (!href) throw new Error('No se pudo preparar un mensaje válido. Revisa teléfono, sala y slot.')
       setData((current) => ({ ...current, registrations: current.registrations.map((p) => p.id === person.id ? { ...p, confirmation_click_count: Math.max(p.confirmation_click_count, saved.confirmation_click_count), access_click_count: Math.max(p.access_click_count, saved.access_click_count) } : p) }))
-      popup.location.replace(href)
-    } catch (problem) { popup.close(); toast.error(problem.message) }
+      launch.open(href)
+    } catch (problem) { launch.close(); toast.error(problem.message) }
     finally { setSendingId('') }
   }
   if (!data) return <><ErrorBox error={error} />{!error && <Spinner />}</>

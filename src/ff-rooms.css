@@ -17,3 +17,4 @@
 .ff-duo-total { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ff-mode-selector > span { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
 .ff-mode-tabs { flex-wrap: wrap; overflow: visible; margin: 0 0 16px; }
+.ff-whatsapp-preference { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; }

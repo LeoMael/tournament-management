@@ -17,7 +17,17 @@ try {
   assert.match(page, /aria-pressed="true">Solo por kills y Booyah/)
   assert.ok(!page.includes('>Todos</button>'))
   for (const label of ['Solo por kills y Booyah', 'Solo por Top', 'Dúo por kills y Booyah', 'Dúo por Top']) assert.ok(page.includes(label))
-  assert.ok(!page.includes('<select'))
+  assert.equal((page.match(/<select/g) || []).length, 1)
+  assert.match(page, /Dónde abrir confirmaciones y accesos de WhatsApp/)
+  const { SoloWhatsAppButton } = await server.ssrLoadModule('/src/components/SoloRoomAccess.jsx')
+  const soloRoom = { id: 'solo', status: 'open', scheduled_at: '2026-11-28T19:00:00-05:00', name: 'Sala prueba' }
+  const soloPerson = { id: 'solo-player', room_id: 'solo', status: 'approved', slot: 7, nickname: 'Jugador', whatsapp: '930475802', confirmation_click_count: 3 }
+  const nativeButton = renderToStaticMarkup(React.createElement(SoloWhatsAppButton, { room: soloRoom, person: soloPerson, whatsappTarget: 'app' }))
+  const webButton = renderToStaticMarkup(React.createElement(SoloWhatsAppButton, { room: soloRoom, person: soloPerson, whatsappTarget: 'web' }))
+  assert.match(nativeButton, /href="whatsapp:\/\/send\?phone=51930475802/)
+  assert.match(nativeButton, /target="_self"/)
+  assert.match(webButton, /href="https:\/\/wa.me\/51930475802/)
+  assert.match(webButton, /target="_blank"/)
   const people = [{ id: 'a', slot: 1, status: 'approved', nickname_1: 'Jugador A', nickname_2: 'Jugador B', full_name: 'Nombre registrado', whatsapp: '999999999', prize_yape_phone: '988888888' }, { id: 'b', slot: 2, status: 'approved', nickname_1: 'Sin premio', prize_yape_phone: '977777777' }]
   const results = [{ registration_id: 'a', placement: 1, kills_1: 2, kills_2: 3, booyah: true }]
   for (const kind of ['solo_top', 'duo_top', 'duo_kills']) {

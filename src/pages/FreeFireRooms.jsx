@@ -23,6 +23,13 @@ export default function FreeFireRooms() {
   const [formKind, setFormKind] = useState('')
   const [focus, setFocus] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [whatsappTarget, setWhatsappTarget] = useState(() => {
+    try { return typeof window !== 'undefined' && window.localStorage.getItem('ragnarok:room-whatsapp-target') === 'app' ? 'app' : 'web' } catch { return 'web' }
+  })
+  const changeWhatsAppTarget = (value) => {
+    setWhatsappTarget(value)
+    try { window.localStorage.setItem('ragnarok:room-whatsapp-target', value) } catch { /* La preferencia funciona en memoria si el navegador bloquea almacenamiento. */ }
+  }
   const selectKind = (mode) => {
     setKind(mode)
     if (mode !== 'solo_kills') setVisitedKinds((current) => current.includes(mode) ? current : [...current, mode])
@@ -65,8 +72,9 @@ export default function FreeFireRooms() {
     <div className="ff-mode-selector"><span>Modalidad</span>
       <div className="tm-tabs ff-mode-tabs" role="group" aria-label="Filtrar salas por modalidad">{Object.entries(FF_ROOM_KINDS).map(([key, value]) => <button type="button" className={`tm-tab ${kind === key ? 'tm-tab--active' : ''}`} aria-pressed={kind === key} disabled={busy} key={key} onClick={() => selectKind(key)}>{value.label}</button>)}</div>
     </div>
-    <div hidden={kind !== 'solo_kills'}><Solo embedded refreshKey={refreshKey} focusRoomId={focus?.kind === 'solo_kills' ? focus.id : ''} /></div>
-    {settings && visitedKinds.map((mode) => <div key={`${settings.edition_id}-${mode}`} hidden={kind !== mode}><FfRoomWorkspace active={kind === mode} kind={mode} settings={settings} refreshKey={refreshKey} focusRoomId={focus?.kind === mode ? focus.id : ''} onCreate={chooseNew} /></div>)}
+    <div className="ff-whatsapp-preference"><label className="solo-payment-filter">Mensajes de sala<select aria-label="Dónde abrir confirmaciones y accesos de WhatsApp" disabled={busy} value={whatsappTarget} onChange={(e) => changeWhatsAppTarget(e.target.value)}><option value="web">Navegador</option><option value="app">Aplicación instalada</option></select></label>{whatsappTarget === 'app' && <small className="hint">Para confirmaciones y accesos. Si no abre la aplicación, cambia a Navegador. Tú confirmas el envío en WhatsApp.</small>}</div>
+    <div hidden={kind !== 'solo_kills'}><Solo embedded whatsappTarget={whatsappTarget} refreshKey={refreshKey} focusRoomId={focus?.kind === 'solo_kills' ? focus.id : ''} /></div>
+    {settings && visitedKinds.map((mode) => <div key={`${settings.edition_id}-${mode}`} hidden={kind !== mode}><FfRoomWorkspace whatsappTarget={whatsappTarget} active={kind === mode} kind={mode} settings={settings} refreshKey={refreshKey} focusRoomId={focus?.kind === mode ? focus.id : ''} onCreate={chooseNew} /></div>)}
     {choosing && <Modal title="Nueva sala Free Fire" onClose={() => setChoosing(false)}><form onSubmit={(e) => { e.preventDefault(); setChoosing(false); setFormKind(creationKind) }}>
       <label className="field">Modalidad<select value={creationKind} onChange={(e) => setCreationKind(e.target.value)}>{Object.entries(FF_ROOM_KINDS).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
       <button className="btn btn--primary">Continuar</button>
