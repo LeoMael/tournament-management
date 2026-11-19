@@ -8,6 +8,7 @@ import { dateTime, GAME_LABEL, money, STATUS_LABEL, whatsappUrl } from '../lib/f
 import { downloadCsv } from '../lib/csv'
 import { publicUrl, removeFile, signedReceiptUrl } from '../lib/storage'
 import TeamConfirmationButton from '../components/TeamConfirmationButton'
+import TeamListVisibility from '../components/TeamListVisibility'
 
 const institutionLabel = (r) => [r.institution === 'UNAP' ? 'UNAP' : r.other_institution ?? 'Otra', r.professional_school].filter(Boolean).join(' · ')
 
@@ -292,6 +293,7 @@ export default function Registrations() {
     <>
       <PageHeader eyebrow="Inscripciones" title="Equipos inscritos" subtitle={`${visible.length} de ${rows.length} equipos`}
         actions={<button className="btn" onClick={exportCsv} type="button" disabled={!visible.length}>Exportar CSV</button>} />
+      <TeamListVisibility />
       <div className="filter-bar">
         <input aria-label="Buscar" placeholder="Buscar equipo, capitán o WhatsApp…" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
         <div className="seg" role="group" aria-label="Juego">

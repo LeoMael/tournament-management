@@ -1,0 +1,8 @@
+.team-list-visibility { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 22px; margin-bottom: 18px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.team-list-visibility > strong { font-size: 12px; }
+.team-list-visibility__games { display: flex; flex-wrap: wrap; gap: 12px 22px; }
+.team-list-visibility__game { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.team-list-visibility__switch--on { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
+.team-list-visibility__switch::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px; }
+.team-list-visibility__help { flex-basis: 100%; margin: 0; }
+.team-list-visibility .error-box { flex-basis: 100%; margin: 0; }
